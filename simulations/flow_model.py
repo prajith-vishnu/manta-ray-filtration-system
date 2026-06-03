@@ -2,15 +2,20 @@ import math
 import random
 import matplotlib.pyplot as plt
 
-def run_polymer_simulation():
-    print("====================================================")
-    print("RUNNING: Phase 6.1 Fluid Vector Field & CFD Engine")
-    print("====================================================")
+def run_polymer_simulation(raker_height=8.0, flow_speed_x=250.0, total_particles=60, headless=False):
+    """
+    Advanced CFD Engine optimized for parametric sweeps.
+    Accepts dynamic raker heights and water speeds.
+    If headless=True, it skips plotting for lightning-fast data crunching.
+    """
+    if not headless:
+        print("====================================================")
+        print(f"RUNNING: CFD Engine | Height: {raker_height}mm | Speed: {flow_speed_x}mm/s")
+        print("====================================================")
     
     # Environment Constants
     channel_length = 100.0
     channel_height = 50.0
-    flow_speed_x = 250.0
     time_step = 0.01
     
     rho_fluid = 1.025e-3  # Seawater density (g/mm^3)
@@ -18,9 +23,8 @@ def run_polymer_simulation():
     v_suction = -60.0     # Downward suction velocity (mm/s)
     C_d = 0.47            # Drag coefficient for spheres
     
-    # Raker Matrix Configuration
+    # Raker Matrix Configuration (Using the dynamic variables now!)
     raker_start_positions = [20.0, 35.0, 50.0, 65.0, 80.0]
-    raker_height = 8.0
     raker_width = 8.0        
     peak_offset = 6.0        
     
@@ -32,33 +36,33 @@ def run_polymer_simulation():
         "PVC":  {"name": "Polyvinyl Chloride (PVC)", "density": 1.40e-3, "size_range": (1.0, 4.5), "color": "#e53e3e"}
     }
     
-    total_particles = 60
     stats = {key: {"tested": 0, "captured": 0} for key in polymer_profiles.keys()}
     
-    fig, ax = plt.subplots(figsize=(12, 6.5))
+    # Setup plotting canvas only if not headless
+    if not headless:
+        fig, ax = plt.subplots(figsize=(12, 6.5))
+    
     random.seed(101)
     
-    # 🌊 WATER CURRENT BACKGROUND ENGINE (Mathematical Fluid Vector Field)
-    print("Generating background fluid vector fields (Water Currents)...")
-    grid_res_x, grid_res_y = 40, 25
-    x_space = [i * (channel_length / (grid_res_x - 1)) for i in range(grid_res_x)]
-    y_space = [i * (channel_height / (grid_res_y - 1)) for i in range(grid_res_y)]
-    
-    for wx in x_space[::2]:  # Draw stylized current lines down the channel
-        for wy in y_space[::2]:
-            # Calculate local flow direction (suction pulls harder closer to the porous floor)
-            local_suction = v_suction * (1.0 - (wy / channel_height))
-            
-            # Simulate water deflecting slightly up and over the solid rakers
-            dx, dy = 6.0, local_suction * 0.05
-            for start_x in raker_start_positions:
-                if start_x <= wx <= start_x + raker_width and wy <= raker_height:
-                    dy = raker_height * 0.5  # Deflect current over obstruction
-            
-            # Plot faded vector arrows representing clean water flow paths
-            ax.arrow(wx, wy, dx, dy, head_width=0.6, head_length=0.9, color='#bee3f8', alpha=0.35)
+    # 🌊 WATER CURRENT BACKGROUND ENGINE (Calculated if not headless)
+    if not headless:
+        print("Generating background fluid vector fields (Water Currents)...")
+        grid_res_x, grid_res_y = 40, 25
+        x_space = [i * (channel_length / (grid_res_x - 1)) for i in range(grid_res_x)]
+        y_space = [i * (channel_height / (grid_res_y - 1)) for i in range(grid_res_y)]
+        
+        for wx in x_space[::2]:  
+            for wy in y_space[::2]:
+                local_suction = v_suction * (1.0 - (wy / channel_height))
+                dx, dy = 6.0, local_suction * 0.05
+                for start_x in raker_start_positions:
+                    if start_x <= wx <= start_x + raker_width and wy <= raker_height:
+                        dy = raker_height * 0.5  
+                ax.arrow(wx, wy, dx, dy, head_width=0.6, head_length=0.9, color='#bee3f8', alpha=0.35)
 
-    print(f"Simulating polymer physics trajectories...")
+    if not headless:
+        print(f"Simulating polymer physics trajectories...")
+        
     for p_id in range(total_particles):
         poly_key = random.choice(list(polymer_profiles.keys()))
         poly = polymer_profiles[poly_key]
@@ -125,37 +129,53 @@ def run_polymer_simulation():
         stats[poly_key]["tested"] += 1
         if status == "TRACKING":
             stats[poly_key]["captured"] += 1
-            ax.plot(x_paths, y_paths, color=poly["color"], alpha=0.6, linewidth=1.5)
+            if not headless:
+                ax.plot(x_paths, y_paths, color=poly["color"], alpha=0.6, linewidth=1.5)
         else:
-            ax.plot(x_paths, y_paths, color=poly["color"], alpha=0.7, linewidth=1.5, linestyle=':')
+            if not headless:
+                ax.plot(x_paths, y_paths, color=poly["color"], alpha=0.7, linewidth=1.5, linestyle=':')
 
     grand_tested = sum(d["tested"] for d in stats.values())
     grand_captured = sum(d["captured"] for d in stats.values())
     global_yield = (grand_captured / grand_tested) * 100
     
-    # Plot Environment Accents
-    ax.axhline(y=channel_height, color='#2b6cb0', linestyle='--', linewidth=2, label='Enclosure Ceiling')
-    ax.axhline(y=0, color='#e53e3e', linestyle='-', linewidth=2, label='Suction Pores Bed')
+    if not headless:
+        print("\n----------------------------------------------------")
+        print("POLYMER MATERIAL EFFICIENCY BREAKDOWN:")
+        print("----------------------------------------------------")
+        for key, data in stats.items():
+            pct = (data["captured"] / data["tested"] * 100) if data["tested"] > 0 else 0
+            print(f"{polymer_profiles[key]['name']:<26} | Captured: {data['captured']}/{data['tested']} | Yield: {pct:.1f}%")
+        print(f"\nOVERALL SIMULATION CORE YIELD: {global_yield:.1f}%")
+        print("----------------------------------------------------")
     
-    for start_x in raker_start_positions:
-        rx = [start_x, start_x + peak_offset, start_x + raker_width]
-        ry = [0.0, raker_height, 0.0]
-        ax.fill(rx, ry, color='#4a5568', edgecolor='#2d3748', alpha=0.9)
-    
-    # Legend Maps
-    ax.plot([], [], color='#bee3f8', alpha=0.7, linewidth=3, label="Water Vector Current (Fluid Flow)")
-    for key, poly in polymer_profiles.items():
-        ax.plot([], [], color=poly["color"], linewidth=2, label=f"{poly['name']}")
-    ax.fill([], [], color='#4a5568', label="Bio-Inspired Gill Rakers")
-    
-    ax.set_xlim(-5, channel_length + 5)
-    ax.set_ylim(-5, channel_height + 5)
-    ax.set_xlabel('Filter Channel Length (mm)', fontsize=11, fontweight='bold')
-    ax.set_ylabel('Filter Channel Height (mm)', fontsize=11, fontweight='bold')
-    ax.set_title(f'Phase 6.1: Manta Ray CFD Engine — Total System Yield: {global_yield:.1f}%', fontsize=12, fontweight='bold', pad=15)
-    ax.grid(True, linestyle=':', alpha=0.3)
-    ax.legend(loc='upper right', fontsize=9)
-    plt.show()
+        # Plot Environment Accents
+        ax.axhline(y=channel_height, color='#2b6cb0', linestyle='--', linewidth=2, label='Enclosure Ceiling')
+        ax.axhline(y=0, color='#e53e3e', linestyle='-', linewidth=2, label='Suction Pores Bed')
+        
+        for start_x in raker_start_positions:
+            rx = [start_x, start_x + peak_offset, start_x + raker_width]
+            ry = [0.0, raker_height, 0.0]
+            ax.fill(rx, ry, color='#4a5568', edgecolor='#2d3748', alpha=0.9)
+        
+        # Legend Maps
+        ax.plot([], [], color='#bee3f8', alpha=0.7, linewidth=3, label="Water Vector Current")
+        for key, poly in polymer_profiles.items():
+            ax.plot([], [], color=poly["color"], linewidth=2, label=f"{poly['name']}")
+        ax.fill([], [], color='#4a5568', label="Bio-Inspired Gill Rakers")
+        
+        ax.set_xlim(-5, channel_length + 5)
+        ax.set_ylim(-5, channel_height + 5)
+        ax.set_xlabel('Filter Channel Length (mm)', fontsize=11, fontweight='bold')
+        ax.set_ylabel('Filter Channel Height (mm)', fontsize=11, fontweight='bold')
+        ax.set_title(f'Phase 6.1: Manta Ray CFD Engine — Yield: {global_yield:.1f}%', fontsize=12, fontweight='bold', pad=15)
+        ax.grid(True, linestyle=':', alpha=0.3)
+        ax.legend(loc='upper right', fontsize=9)
+        plt.show()
+
+    # CRITICAL: Return the yield percentage so our automated loop can save it!
+    return global_yield
 
 if __name__ == "__main__":
-    run_polymer_simulation()
+    # Default visual run if executed manually
+    run_polymer_simulation(raker_height=8.0, flow_speed_x=250.0, total_particles=60, headless=False)
