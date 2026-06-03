@@ -1,3 +1,5 @@
+import os
+import csv
 import math
 import random
 import matplotlib.pyplot as plt
@@ -10,11 +12,11 @@ def run_interactive_app():
     # --- Initial Environment Parameter Baselines ---
     init_height = 8.0
     init_speed = 250.0
-    total_particles = 40  
+    init_particles = 40  # Controlled via slider now
     
     channel_length = 100.0  # mm
     channel_height = 50.0   # mm
-    channel_depth = 50.0    # mm (3D depth matrix scale)
+    channel_depth = 50.0    # mm 
     time_step = 0.01
     
     rho_fluid = 1.025e-3  # Seawater density (g/mm^3)
@@ -34,12 +36,19 @@ def run_interactive_app():
         "PVC":  {"name": "Polyvinyl Chloride (PVC)", "density": 1.40e-3, "size_range": (1.0, 4.5), "color": "#fc8181", "active": True}
     }
 
-    app_state = {"storm_mode": False}
+    # --- Persistent Application State Dictionary ---
+    app_state = {
+        "storm_mode": False,
+        "current_yield": 100.0,
+        "q_intake": 0.0,
+        "q_filtrate": 0.0,
+        "escaped_count": 0
+    }
 
     # --- Setup Window Layout Frame ---
-    fig, ax = plt.subplots(figsize=(13, 8), facecolor='#0f172a')
+    fig, ax = plt.subplots(figsize=(13, 8.5), facecolor='#0f172a')
     ax.set_facecolor('#1e293b') 
-    plt.subplots_adjust(bottom=0.28, left=0.08, right=0.82)  
+    plt.subplots_adjust(bottom=0.34, left=0.08, right=0.82)  # Expanded bottom space for 3 sliders + button row
     
     ceiling_line = ax.axhline(y=channel_height, color='#3182ce', linestyle='--', linewidth=2, label='Enclosure Ceiling')
     floor_line = ax.axhline(y=0, color='#e53e3e', linestyle='-', linewidth=2, label='Suction Pores Bed')
@@ -49,7 +58,9 @@ def run_interactive_app():
     vector_arrows = []
     hud_boxes = []  
 
-    def compute_and_render_physics(raker_height, flow_speed_x):
+    def compute_and_render_physics(raker_height, flow_speed_x, particle_count):
+        particle_count = int(particle_count)
+        
         for line in trajectory_lines:
             line.remove()
         trajectory_lines.clear()
@@ -65,6 +76,10 @@ def run_interactive_app():
         for box in hud_boxes:
             box.remove()
         hud_boxes.clear()
+        
+        # Revert export save button styling on slider updates
+        export_button.color = '#334155'
+        export_button.label.set_text('Export Diagnostics')
         
         random.seed(105 if app_state["storm_mode"] else 101)
         
@@ -112,7 +127,7 @@ def run_interactive_app():
         # 3. Run high-fidelity kinematics loop
         captured_count = 0
         
-        for p_id in range(total_particles):
+        for p_id in range(particle_count):
             poly_key = random.choice(available_keys)
             poly = polymer_profiles[poly_key]
             
@@ -191,7 +206,8 @@ def run_interactive_app():
             
             trajectory_lines.append(line)
             
-        current_yield = (captured_count / total_particles) * 100
+        current_yield = (captured_count / particle_count) * 100
+        escaped_count = particle_count - captured_count
         
         # 🌊 4. FLUID DYNAMICS VOLUMETRIC METRICS PANEL
         intake_area_cm2 = (channel_height * channel_depth) / 100.0
@@ -201,10 +217,14 @@ def run_interactive_app():
         clogging_coefficient = 1.0 if raker_height >= 4.0 else (0.4 + 0.15 * raker_height)
         q_filtrate_l_min = q_intake_l_min * 0.45 * clogging_coefficient
 
+        # Cache variables to global state register for CSV exporter context mapping
+        app_state["current_yield"] = current_yield
+        app_state["q_intake"] = q_intake_l_min
+        app_state["q_filtrate"] = q_filtrate_l_min
+        app_state["escaped_count"] = escaped_count
+
         # 📊 RENDER INDUSTRIAL HUD PANEL
-        escaped_count = total_particles - captured_count
         flow_profile_string = "STORM CRISIS" if app_state["storm_mode"] else "LAMINAR STABLE"
-        
         purity_index = current_yield 
         status_label = "[OK] PURITY NOMINAL" if purity_index == 100.0 else "[CRIT] FILTRATE POLLUTED"
         
@@ -218,7 +238,7 @@ def run_interactive_app():
             f" Channel Intake Flux : {q_intake_l_min:.1f} L/min\n"
             f" Bottom Filtrate Flow: {q_filtrate_l_min:.1f} L/min\n"
             f" -------------------------------------\n"
-            f" Injected Debris Load: {total_particles} Units\n"
+            f" Injected Debris Load: {particle_count} Units\n"
             f" Deflected Retentate : {captured_count} Units\n"
             f" Filtrate Pollutants : {escaped_count} Units\n"
             f" -------------------------------------\n"
@@ -241,17 +261,20 @@ def run_interactive_app():
         fig.canvas.draw_idle()
 
     # --- Generate Interactive UI Sliders ---
-    ax_height_slider = plt.axes([0.18, 0.14, 0.55, 0.03], facecolor='#334155')
-    ax_speed_slider = plt.axes([0.18, 0.08, 0.55, 0.03], facecolor='#334155')
+    ax_height_slider = plt.axes([0.18, 0.22, 0.55, 0.025], facecolor='#334155')
+    ax_speed_slider = plt.axes([0.18, 0.16, 0.55, 0.025], facecolor='#334155')
+    ax_load_slider = plt.axes([0.18, 0.10, 0.55, 0.025], facecolor='#334155')
     
     slider_height = Slider(ax_height_slider, 'Raker Height (mm)', 0.0, 14.0, valinit=init_height, valfmt='%1.1f mm', color='#64748b')
     slider_speed = Slider(ax_speed_slider, 'Flow Speed (mm/s)', 50.0, 800.0, valinit=init_speed, valfmt='%1.0f mm/s', color='#3b82f6')
+    slider_particles = Slider(ax_load_slider, 'Debris Load (PPM)', 10.0, 100.0, valinit=init_particles, valfmt='%1.0f Units', color='#a855f7')
     
     def on_slider_manipulation(val):
-        compute_and_render_physics(slider_height.val, slider_speed.val)
+        compute_and_render_physics(slider_height.val, slider_speed.val, slider_particles.val)
         
     slider_height.on_changed(on_slider_manipulation)
     slider_speed.on_changed(on_slider_manipulation)
+    slider_particles.on_changed(on_slider_manipulation)
     
     # --- Generate Interactive Material Checkboxes (Right Console) ---
     ax_check_bounds = plt.axes([0.84, 0.38, 0.14, 0.25], facecolor='#1e293b')
@@ -261,7 +284,6 @@ def run_interactive_app():
     
     num_polymers = len(poly_keys_list)
     
-    # 🎨 MODERN HIGH-CONTRAST CONSOLE OVERHAUL (Uses built-in props maps to support modern Matplotlib)
     material_checkboxes = CheckButtons(
         ax=ax_check_bounds, 
         labels=checkbox_labels, 
@@ -276,12 +298,12 @@ def run_interactive_app():
             if polymer_profiles[key]["name"].startswith(label):
                 polymer_profiles[key]["active"] = not polymer_profiles[key]["active"]
                 break
-        compute_and_render_physics(slider_height.val, slider_speed.val)
+        compute_and_render_physics(slider_height.val, slider_speed.val, slider_particles.val)
         
     material_checkboxes.on_clicked(on_checkbox_toggle)
     
     # --- Generate Interactive Reset UI Button ---
-    ax_reset_btn = plt.axes([0.22, 0.02, 0.14, 0.04])
+    ax_reset_btn = plt.axes([0.18, 0.02, 0.14, 0.04])
     reset_button = Button(ax_reset_btn, 'Reset Console', color='#334155', hovercolor='#475569')
     reset_button.label.set_color('#f8fafc')
     reset_button.label.set_fontweight('bold')
@@ -292,6 +314,7 @@ def run_interactive_app():
         storm_button.label.set_text('Trigger Storm Mode')
         slider_height.reset()
         slider_speed.reset()
+        slider_particles.reset()
         for i, key in enumerate(poly_keys_list):
             if not polymer_profiles[key]["active"]:
                 material_checkboxes.set_active(i)
@@ -299,7 +322,7 @@ def run_interactive_app():
     reset_button.on_clicked(on_reset_click)
 
     # --- Generate Interactive Storm Mode Toggle Button ---
-    ax_storm_btn = plt.axes([0.42, 0.02, 0.18, 0.04])
+    ax_storm_btn = plt.axes([0.35, 0.02, 0.18, 0.04])
     storm_button = Button(ax_storm_btn, 'Trigger Storm Mode', color='#7f1d1d', hovercolor='#991b1b')
     storm_button.label.set_color('#fca5a5')
     storm_button.label.set_fontweight('bold')
@@ -312,9 +335,46 @@ def run_interactive_app():
         else:
             storm_button.color = '#7f1d1d'
             storm_button.label.set_text('Trigger Storm Mode')
-        compute_and_render_physics(slider_height.val, slider_speed.val)
+        compute_and_render_physics(slider_height.val, slider_speed.val, slider_particles.val)
         
     storm_button.on_clicked(on_storm_click)
+
+    # --- Generate Interactive Diagnostics Exporter Button ---
+    ax_export_btn = plt.axes([0.56, 0.02, 0.17, 0.04])
+    export_button = Button(ax_export_btn, 'Export Diagnostics', color='#334155', hovercolor='#475569')
+    export_button.label.set_color('#6ee7b7')  # Cool neon mint text color
+    export_button.label.set_fontweight('bold')
+    
+    def on_export_click(event):
+        csv_filename = "workspace_saves.csv"
+        file_existed = os.path.isfile(csv_filename)
+        
+        with open(csv_filename, mode='a', newline='') as f:
+            writer = csv.writer(f)
+            if not file_existed:
+                # Build custom research headers dynamically
+                writer.writerow([
+                    "Raker Height (mm)", "Flow Velocity (mm/s)", "Debris Particle Count", 
+                    "Hydro-Regime Mode", "Channel Intake Flux (L/min)", "Bottom Filtrate Flow (L/min)", 
+                    "Filtrate Purity Index (%)", "Pollutant Leaks Caught"
+                ])
+            writer.writerow([
+                f"{slider_height.val:.2f}",
+                f"{slider_speed.val:.1f}",
+                int(slider_particles.val),
+                "STORM SURGE" if app_state["storm_mode"] else "LAMINAR STABLE",
+                f"{app_state['q_intake']:.2f}",
+                f"{app_state['q_filtrate']:.2f}",
+                f"{app_state['current_yield']:.1f}",
+                app_state["escaped_count"]
+            ])
+            
+        export_button.color = '#065f46'  # Shift button color to deep success green
+        export_button.label.set_text('Saved Row! [X]')
+        print(f"[SUCCESS] Appended runtime snapshot coordinates to local file: '{csv_filename}'")
+        fig.canvas.draw_idle()
+        
+    export_button.on_clicked(on_export_click)
 
     # Compile layout parameters
     ax.set_xlim(-5, channel_length + 5)
@@ -328,7 +388,7 @@ def run_interactive_app():
     ax.fill([], [], color='#475569', label="Bio-Inspired Gill Rakers")
     ax.legend(loc='upper right', fontsize=8, facecolor='#0f172a', edgecolor='#334155')
 
-    compute_and_render_physics(init_height, init_speed)
+    compute_and_render_physics(init_height, init_speed, init_particles)
     plt.show()
 
 if __name__ == "__main__":
