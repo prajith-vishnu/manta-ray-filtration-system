@@ -1,4 +1,3 @@
-cat << 'EOF' > README.md
 # 🌌 Manta Ray Bio-Inspired Microplastic Filtration Platform
 ### *High-Fidelity Computational Fluid Dynamics (CFD) Kinematics Tracking Engine & Interactive Data Workspace*
 
@@ -86,29 +85,3 @@ $$\mathbf{a}_{\text{total}} = \mathbf{a}_{\text{buoy}} + \mathbf{a}_{\text{drag}
 ├── simulations/            # Low-level physical verification modules
 ├── data_fetch/             # Protocols for pulling experimental validation figures
 └── workspace_saves.csv     # Persistent storage capturing local diagnostic CSV rows
-
-##🚀 Workspace Initialization & Deployment
-Environment Prerequisites
-This framework requires a local or remote installation of Python 3.14+.
-Automated Installation & Launch
-Execute this unified terminal sequence to clone the code assets, handle structural dependency tracking, and execute either the desktop control suite or the cloud-native interface web application:
-
-git clone [https://github.com/prajith-vishnu/manta-ray-filtration-system.git](https://github.com/prajith-vishnu/manta-ray-filtration-system.git)
-cd manta-ray-filtration-system
-pip install -r requirements.txt
-streamlit run web_app.py
-python3 interactive_app.py
-
-##🗺️ Engineering Development Roadmap
-[x] Refactor primitive coordinate algorithms into modular object-oriented parameters.
-[x] Move background code threads into a unified, high-contrast dark console HUD.
-[x] Integrate high-fidelity continuous fluid volume continuity processing.
-[x] Convert visualization architecture to deploy natively to public web infrastructure.
-[ ] Upgrade 2D particle boundary sweeps into an expansive 3D vector fluid matrix.
-[ ] Export internal node mesh files into cross-compatible CAD structural assets for rapid prototyping.
-##📜 License & Compliance
-Distributed under the open-source MIT License. Check the parent LICENSE directory files for comprehensive legal validation terms.
-EOF
-git add README.md
-git commit -m "Docs: Update README to enterprise research grade technical specification standard"
-git push origin main
