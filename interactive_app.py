@@ -3,14 +3,18 @@ import random
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, Button, CheckButtons
 
+# Set the dark theme environment before creating layout elements
+plt.style.use('dark_background')
+
 def run_interactive_app():
     # --- Initial Environment Parameter Baselines ---
     init_height = 8.0
     init_speed = 250.0
     total_particles = 40  
     
-    channel_length = 100.0
-    channel_height = 50.0
+    channel_length = 100.0  # mm
+    channel_height = 50.0   # mm
+    channel_depth = 50.0    # mm (3D depth matrix scale)
     time_step = 0.01
     
     rho_fluid = 1.025e-3  # Seawater density (g/mm^3)
@@ -23,21 +27,21 @@ def run_interactive_app():
     peak_offset = 6.0        
     
     polymer_profiles = {
-        "PP":   {"name": "Polypropylene (PP)",       "density": 0.90e-3, "size_range": (1.5, 4.0), "color": "#4299e1", "active": True},
-        "LDPE": {"name": "Low-Density Poly (LDPE)",  "density": 0.92e-3, "size_range": (1.0, 3.0), "color": "#48bb78", "active": True},
-        "PS":   {"name": "Polystyrene (PS)",        "density": 1.05e-3, "size_range": (0.5, 2.0), "color": "#ecc94b", "active": True},
-        "PET":  {"name": "Polyethylene (PET)",       "density": 1.38e-3, "size_range": (0.5, 2.5), "color": "#ed64a6", "active": True},
-        "PVC":  {"name": "Polyvinyl Chloride (PVC)", "density": 1.40e-3, "size_range": (1.0, 4.5), "color": "#e53e3e", "active": True}
+        "PP":   {"name": "Polypropylene (PP)",       "density": 0.90e-3, "size_range": (1.5, 4.0), "color": "#63b3ed", "active": True},
+        "LDPE": {"name": "Low-Density Poly (LDPE)",  "density": 0.92e-3, "size_range": (1.0, 3.0), "color": "#68d391", "active": True},
+        "PS":   {"name": "Polystyrene (PS)",        "density": 1.05e-3, "size_range": (0.5, 2.0), "color": "#f6e05e", "active": True},
+        "PET":  {"name": "Polyethylene (PET)",       "density": 1.38e-3, "size_range": (0.5, 2.5), "color": "#f687b3", "active": True},
+        "PVC":  {"name": "Polyvinyl Chloride (PVC)", "density": 1.40e-3, "size_range": (1.0, 4.5), "color": "#fc8181", "active": True}
     }
 
-    # --- Application State Registry ---
     app_state = {"storm_mode": False}
 
     # --- Setup Window Layout Frame ---
-    fig, ax = plt.subplots(figsize=(13, 8))
+    fig, ax = plt.subplots(figsize=(13, 8), facecolor='#0f172a')
+    ax.set_facecolor('#1e293b') 
     plt.subplots_adjust(bottom=0.28, left=0.08, right=0.82)  
     
-    ceiling_line = ax.axhline(y=channel_height, color='#2b6cb0', linestyle='--', linewidth=2, label='Enclosure Ceiling')
+    ceiling_line = ax.axhline(y=channel_height, color='#3182ce', linestyle='--', linewidth=2, label='Enclosure Ceiling')
     floor_line = ax.axhline(y=0, color='#e53e3e', linestyle='-', linewidth=2, label='Suction Pores Bed')
     
     trajectory_lines = []
@@ -46,7 +50,6 @@ def run_interactive_app():
     hud_boxes = []  
 
     def compute_and_render_physics(raker_height, flow_speed_x):
-        # 1. Clear older frame assets cleanly
         for line in trajectory_lines:
             line.remove()
         trajectory_lines.clear()
@@ -63,10 +66,9 @@ def run_interactive_app():
             box.remove()
         hud_boxes.clear()
         
-        # Locked seed maintains structural continuity across variable shifts, but shifts during storm mode
         random.seed(105 if app_state["storm_mode"] else 101)
         
-        # 2. Redraw background current vectors (Warped dynamically if Storm Mode is active)
+        # 1. Redraw background current vectors
         grid_res_x, grid_res_y = 24, 12
         x_space = [i * (channel_length / (grid_res_x - 1)) for i in range(grid_res_x)]
         y_space = [i * (channel_height / (grid_res_y - 1)) for i in range(grid_res_y)]
@@ -77,7 +79,6 @@ def run_interactive_app():
                 dx = flow_speed_x * 0.024
                 dy = local_suction * 0.05
                 
-                # If storm mode is triggered, introduce sinusoidal fluid eddies
                 if app_state["storm_mode"]:
                     dy += math.sin(wx * 0.15 + wy * 0.2) * 2.5
                     dx += math.cos(wy * 0.4) * 1.0
@@ -85,31 +86,30 @@ def run_interactive_app():
                 for start_x in raker_start_positions:
                     if start_x <= wx <= start_x + raker_width and wy <= raker_height:
                         dy = raker_height * 0.5  
-                arr = ax.arrow(wx, wy, dx, dy, head_width=0.7, head_length=1.0, color='#bee3f8', alpha=0.3)
+                arr = ax.arrow(wx, wy, dx, dy, head_width=0.7, head_length=1.0, color='#93c5fd', alpha=0.25)
                 vector_arrows.append(arr)
 
-        # 3. Redraw raker structures
+        # 2. Redraw raker structures
         for start_x in raker_start_positions:
             rx = [start_x, start_x + peak_offset, start_x + raker_width]
             ry = [0.0, raker_height, 0.0]
-            poly_patch = ax.fill(rx, ry, color='#4a5568', edgecolor='#2d3748', alpha=0.9)[0]
+            poly_patch = ax.fill(rx, ry, color='#475569', edgecolor='#64748b', alpha=0.95)[0]
             raker_patches.append(poly_patch)
 
-        # 4. Filter out inactive polymers
         available_keys = [k for k, p in polymer_profiles.items() if p["active"]]
         
         if not available_keys:
             hud_panel = ax.text(
-                1.5, 48.5, "SYSTEM PAUSED\n-------------------------\nSelect at least one polymer\nfrom the console to inject.", 
-                fontsize=9, fontfamily='monospace', fontweight='bold', verticalalignment='top',
-                bbox=dict(boxstyle='round,pad=0.6', facecolor='#fee2e2', edgecolor='#f87171', alpha=0.95)
+                1.5, 48.5, "SYSTEM STATUS: PAUSED\n-------------------------\nSelect at least one polymer\nfrom console to inject.", 
+                fontsize=9, fontfamily='monospace', fontweight='bold', color='#fca5a5', verticalalignment='top',
+                bbox=dict(boxstyle='round,pad=0.6', facecolor='#7f1d1d', edgecolor='#f87171', alpha=0.95)
             )
             hud_boxes.append(hud_panel)
-            ax.set_title('Manta Computational Fluid Dynamics Workspace Dashboard', fontsize=12, fontweight='bold', pad=15)
+            ax.set_title('Manta Advanced CFD Real-Time Analytics Dashboard', color='#f8fafc', fontsize=12, fontweight='bold', pad=15)
             fig.canvas.draw_idle()
             return
 
-        # 5. Run kinematic physics tracking loops
+        # 3. Run high-fidelity kinematics loop
         captured_count = 0
         
         for p_id in range(total_particles):
@@ -147,9 +147,7 @@ def run_interactive_app():
                     wobble = math.sin(elapsed_time * 25 + p_id) * 0.2
                     total_a_y = a_buoy + a_drag
                     
-                    # 🌪️ CRITICAL FLUID TURBULENCE INJECTION
                     if app_state["storm_mode"]:
-                        # Introduces intense, high-frequency kinetic buffeting forces
                         total_a_y += random.uniform(-45000.0, 45000.0)
                     
                     velocity_y += total_a_y * dt
@@ -166,7 +164,6 @@ def run_interactive_app():
                             current_wall_height = raker_height - ((raker_height / (raker_width - peak_offset)) * (particle_x - peak_x))
                             
                         if start_x <= particle_x <= end_x and particle_y <= current_wall_height:
-                            # Bounce calculation handling
                             velocity_y = abs(velocity_y) * 0.7 + 160.0  
                             particle_y = current_wall_height + 0.1
                     
@@ -188,58 +185,67 @@ def run_interactive_app():
                 
             if status == "TRACKING":
                 captured_count += 1
-                line, = ax.plot(x_paths, y_paths, color=poly["color"], alpha=0.6, linewidth=1.5)
+                line, = ax.plot(x_paths, y_paths, color=poly["color"], alpha=0.7, linewidth=1.5)
             else:
-                line, = ax.plot(x_paths, y_paths, color=poly["color"], alpha=0.6, linewidth=1.5, linestyle=':')
+                line, = ax.plot(x_paths, y_paths, color=poly["color"], alpha=0.7, linewidth=1.5, linestyle=':')
             
             trajectory_lines.append(line)
             
         current_yield = (captured_count / total_particles) * 100
         
-        # 📊 GENERATE CRITICAL TELEMETRY HUD DATA FRAME
-        escaped_count = total_particles - captured_count
-        flow_profile_string = "STORM SURGE [CRITICAL]" if app_state["storm_mode"] else "LAMINAR [STABLE]"
+        # 🌊 4. FLUID DYNAMICS VOLUMETRIC METRICS PANEL
+        intake_area_cm2 = (channel_height * channel_depth) / 100.0
+        speed_cm_s = flow_speed_x / 10.0
+        q_intake_l_min = intake_area_cm2 * speed_cm_s * 0.06
         
-        if current_yield == 100.0:
-            status_label = "[OK] OPTIMAL YIELD"
-        elif current_yield >= 85.0:
-            status_label = "[WARN] MINOR LEAKAGE"
-        else:
-            status_label = "[CRIT] SYSTEM FAILURE"
+        clogging_coefficient = 1.0 if raker_height >= 4.0 else (0.4 + 0.15 * raker_height)
+        q_filtrate_l_min = q_intake_l_min * 0.45 * clogging_coefficient
+
+        # 📊 RENDER INDUSTRIAL HUD PANEL
+        escaped_count = total_particles - captured_count
+        flow_profile_string = "STORM CRISIS" if app_state["storm_mode"] else "LAMINAR STABLE"
+        
+        purity_index = current_yield 
+        status_label = "[OK] PURITY NOMINAL" if purity_index == 100.0 else "[CRIT] FILTRATE POLLUTED"
         
         hud_string = (
-            f"SYSTEM CORE TELEMETRY\n"
-            f"-------------------------\n"
-            f"Flow Speed    : {flow_speed_x:.0f} mm/s\n"
-            f"Raker Height  : {raker_height:.1f} mm\n"
-            f"Flow Regime   : {flow_profile_string}\n"
-            f"Stream Sample : {total_particles} units\n"
-            f"Captured Core : {captured_count}\n"
-            f"Escaped Waste : {escaped_count}\n"
-            f"-------------------------\n"
-            f"SYSTEM YIELD  : {current_yield:.1f}%\n"
-            f"STATUS        : {status_label}"
+            f" ⚡ FLUID CONTAMINATION SYSTEMS HUD\n"
+            f" -------------------------------------\n"
+            f" Flow Velocity Rate  : {flow_speed_x:.0f} mm/s\n"
+            f" Gill Raker Profile   : {raker_height:.1f} mm\n"
+            f" Flow Hydro-Regime   : {flow_profile_string}\n"
+            f" -------------------------------------\n"
+            f" Channel Intake Flux : {q_intake_l_min:.1f} L/min\n"
+            f" Bottom Filtrate Flow: {q_filtrate_l_min:.1f} L/min\n"
+            f" -------------------------------------\n"
+            f" Injected Debris Load: {total_particles} Units\n"
+            f" Deflected Retentate : {captured_count} Units\n"
+            f" Filtrate Pollutants : {escaped_count} Units\n"
+            f" -------------------------------------\n"
+            f" FILTRATE PURITY INDEX: {purity_index:.1f}%\n"
+            f" CONSOLE ALARM STATUS : {status_label}"
         )
         
-        box_face = "#fef2f2" if current_yield < 100.0 or app_state["storm_mode"] else "#f8fafc"
-        box_edge = "#f87171" if current_yield < 100.0 or app_state["storm_mode"] else "#cbd5e0"
+        box_face = "#1e1b4b" if purity_index == 100.0 and not app_state["storm_mode"] else "#451a03" if purity_index >= 85.0 else "#7f1d1d"
+        box_edge = "#3b82f6" if purity_index == 100.0 and not app_state["storm_mode"] else "#f59e0b" if purity_index >= 85.0 else "#ef4444"
+        text_color = "#38bdf8" if purity_index == 100.0 and not app_state["storm_mode"] else "#fbbf24" if purity_index >= 85.0 else "#fca5a5"
         
         hud_panel = ax.text(
-            1.5, 48.5, hud_string, fontsize=9, fontfamily='monospace', fontweight='bold',
+            1.5, 48.5, hud_string, fontsize=9, fontfamily='monospace', fontweight='bold', color=text_color,
             verticalalignment='top', horizontalalignment='left',
-            bbox=dict(boxstyle='round,pad=0.6', facecolor=box_face, edgecolor=box_edge, alpha=0.92)
+            bbox=dict(boxstyle='round,pad=0.6', facecolor=box_face, edgecolor=box_edge, alpha=0.95)
         )
         hud_boxes.append(hud_panel)
         
-        ax.set_title('Manta Computational Fluid Dynamics Workspace Dashboard', fontsize=12, fontweight='bold', pad=15)
+        ax.set_title('Manta Advanced CFD Real-Time Analytics Dashboard', color='#f8fafc', fontsize=12, fontweight='bold', pad=15)
         fig.canvas.draw_idle()
 
     # --- Generate Interactive UI Sliders ---
-    ax_height_slider = plt.axes([0.18, 0.14, 0.55, 0.03], facecolor='#e2e8f0')
-    ax_speed_slider = plt.axes([0.18, 0.08, 0.55, 0.03], facecolor='#e2e8f0')
+    ax_height_slider = plt.axes([0.18, 0.14, 0.55, 0.03], facecolor='#334155')
+    ax_speed_slider = plt.axes([0.18, 0.08, 0.55, 0.03], facecolor='#334155')
     
-    slider_height = Slider(ax_height_slider, 'Raker Height (mm)', 0.0, 14.0, valinit=init_height, valfmt='%1.1f mm', color='#4a5568')
-    slider_speed = Slider(ax_speed_slider, 'Flow Speed (mm/s)', 50.0, 800.0, valinit=init_speed, valfmt='%1.0f mm/s', color='#2b6cb0')
+    slider_height = Slider(ax_height_slider, 'Raker Height (mm)', 0.0, 14.0, valinit=init_height, valfmt='%1.1f mm', color='#64748b')
+    slider_speed = Slider(ax_speed_slider, 'Flow Speed (mm/s)', 50.0, 800.0, valinit=init_speed, valfmt='%1.0f mm/s', color='#3b82f6')
     
     def on_slider_manipulation(val):
         compute_and_render_physics(slider_height.val, slider_speed.val)
@@ -248,17 +254,22 @@ def run_interactive_app():
     slider_speed.on_changed(on_slider_manipulation)
     
     # --- Generate Interactive Material Checkboxes (Right Console) ---
-    ax_check_bounds = plt.axes([0.84, 0.38, 0.14, 0.25], facecolor='#f7fafc')
+    ax_check_bounds = plt.axes([0.84, 0.38, 0.14, 0.25], facecolor='#1e293b')
     poly_keys_list = list(polymer_profiles.keys())
     checkbox_labels = [polymer_profiles[k]["name"].split(" (")[0] for k in poly_keys_list]
     checkbox_actives = [polymer_profiles[k]["active"] for k in poly_keys_list]
     
-    material_checkboxes = CheckButtons(ax_check_bounds, checkbox_labels, checkbox_actives)
+    num_polymers = len(poly_keys_list)
     
-    for i, key in enumerate(poly_keys_list):
-        material_checkboxes.labels[i].set_color(polymer_profiles[key]["color"])
-        material_checkboxes.labels[i].set_fontweight("bold")
-        material_checkboxes.labels[i].set_fontsize(8)
+    # 🎨 MODERN HIGH-CONTRAST CONSOLE OVERHAUL (Uses built-in props maps to support modern Matplotlib)
+    material_checkboxes = CheckButtons(
+        ax=ax_check_bounds, 
+        labels=checkbox_labels, 
+        actives=checkbox_actives,
+        label_props={'color': ['#ffffff'] * num_polymers, 'fontweight': ['bold'] * num_polymers, 'fontsize': [9] * num_polymers},
+        frame_props={'edgecolor': ['#94a3b8'] * num_polymers, 'facecolor': ['#334155'] * num_polymers, 'linewidth': [1.5] * num_polymers},
+        check_props={'color': ['#ffffff'] * num_polymers, 'linewidth': [2.5] * num_polymers}
+    )
     
     def on_checkbox_toggle(label):
         for key in polymer_profiles.keys():
@@ -271,11 +282,13 @@ def run_interactive_app():
     
     # --- Generate Interactive Reset UI Button ---
     ax_reset_btn = plt.axes([0.22, 0.02, 0.14, 0.04])
-    reset_button = Button(ax_reset_btn, 'Reset Workspace', color='#cbd5e0', hovercolor='#a0aec0')
+    reset_button = Button(ax_reset_btn, 'Reset Console', color='#334155', hovercolor='#475569')
+    reset_button.label.set_color('#f8fafc')
+    reset_button.label.set_fontweight('bold')
     
     def on_reset_click(event):
         app_state["storm_mode"] = False
-        storm_button.color = '#feb2b2'
+        storm_button.color = '#7f1d1d'
         storm_button.label.set_text('Trigger Storm Mode')
         slider_height.reset()
         slider_speed.reset()
@@ -287,15 +300,17 @@ def run_interactive_app():
 
     # --- Generate Interactive Storm Mode Toggle Button ---
     ax_storm_btn = plt.axes([0.42, 0.02, 0.18, 0.04])
-    storm_button = Button(ax_storm_btn, 'Trigger Storm Mode', color='#feb2b2', hovercolor='#fc8181')
+    storm_button = Button(ax_storm_btn, 'Trigger Storm Mode', color='#7f1d1d', hovercolor='#991b1b')
+    storm_button.label.set_color('#fca5a5')
+    storm_button.label.set_fontweight('bold')
     
     def on_storm_click(event):
         app_state["storm_mode"] = not app_state["storm_mode"]
         if app_state["storm_mode"]:
-            storm_button.color = '#f56565'
+            storm_button.color = '#b91c1c'
             storm_button.label.set_text('Deactivate Storm Mode')
         else:
-            storm_button.color = '#feb2b2'
+            storm_button.color = '#7f1d1d'
             storm_button.label.set_text('Trigger Storm Mode')
         compute_and_render_physics(slider_height.val, slider_speed.val)
         
@@ -304,14 +319,14 @@ def run_interactive_app():
     # Compile layout parameters
     ax.set_xlim(-5, channel_length + 5)
     ax.set_ylim(-5, channel_height + 5)
-    ax.set_xlabel('Filter Channel Length (mm)', fontsize=11, fontweight='bold')
-    ax.set_ylabel('Filter Channel Height (mm)', fontsize=11, fontweight='bold')
-    ax.grid(True, linestyle=':', alpha=0.3)
+    ax.set_xlabel('Filter Channel Length (mm)', color='#cbd5e0', fontsize=11, fontweight='bold')
+    ax.set_ylabel('Filter Channel Height (mm)', color='#cbd5e0', fontsize=11, fontweight='bold')
+    ax.grid(True, linestyle=':', alpha=0.15)
     
     for key, poly in polymer_profiles.items():
         ax.plot([], [], color=poly["color"], linewidth=2, label=poly["name"])
-    ax.fill([], [], color='#4a5568', label="Bio-Inspired Gill Rakers")
-    ax.legend(loc='upper right', fontsize=8)
+    ax.fill([], [], color='#475569', label="Bio-Inspired Gill Rakers")
+    ax.legend(loc='upper right', fontsize=8, facecolor='#0f172a', edgecolor='#334155')
 
     compute_and_render_physics(init_height, init_speed)
     plt.show()
