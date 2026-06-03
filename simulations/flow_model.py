@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 def run_polymer_simulation():
     print("====================================================")
-    print("RUNNING: Phase 6 Polymer Diversity & Drag Engine")
+    print("RUNNING: Phase 6.1 Fluid Vector Field & CFD Engine")
     print("====================================================")
     
     # Environment Constants
@@ -13,18 +13,17 @@ def run_polymer_simulation():
     flow_speed_x = 250.0
     time_step = 0.01
     
-    rho_fluid = 1.025e-3  # Seawater density: 1.025 g/cm^3 mapped to g/mm^3
-    g = 9810.0            # Gravity: 9810 mm/s^2
-    v_suction = -60.0     # Downward water suction velocity (mm/s)
-    C_d = 0.47            # Drag coefficient for a spherical particle
+    rho_fluid = 1.025e-3  # Seawater density (g/mm^3)
+    g = 9810.0            # Gravity (mm/s^2)
+    v_suction = -60.0     # Downward suction velocity (mm/s)
+    C_d = 0.47            # Drag coefficient for spheres
     
-    # Raker Matrix Defs
+    # Raker Matrix Configuration
     raker_start_positions = [20.0, 35.0, 50.0, 65.0, 80.0]
     raker_height = 8.0
     raker_width = 8.0        
     peak_offset = 6.0        
     
-    # Polymer Database Dictionary (Density in g/mm^3, Size range in mm)
     polymer_profiles = {
         "PP":   {"name": "Polypropylene (PP)",       "density": 0.90e-3, "size_range": (1.5, 4.0), "color": "#4299e1"},
         "LDPE": {"name": "Low-Density Poly (LDPE)",  "density": 0.92e-3, "size_range": (1.0, 3.0), "color": "#48bb78"},
@@ -36,26 +35,41 @@ def run_polymer_simulation():
     total_particles = 60
     stats = {key: {"tested": 0, "captured": 0} for key in polymer_profiles.keys()}
     
-    plt.figure(figsize=(12, 6.5))
-    random.seed(101)  # Anchored seed for experimental tracking
+    fig, ax = plt.subplots(figsize=(12, 6.5))
+    random.seed(101)
     
-    print(f"Injecting mixed polymer stream ({total_particles} particles)...")
+    # 🌊 WATER CURRENT BACKGROUND ENGINE (Mathematical Fluid Vector Field)
+    print("Generating background fluid vector fields (Water Currents)...")
+    grid_res_x, grid_res_y = 40, 25
+    x_space = [i * (channel_length / (grid_res_x - 1)) for i in range(grid_res_x)]
+    y_space = [i * (channel_height / (grid_res_y - 1)) for i in range(grid_res_y)]
     
+    for wx in x_space[::2]:  # Draw stylized current lines down the channel
+        for wy in y_space[::2]:
+            # Calculate local flow direction (suction pulls harder closer to the porous floor)
+            local_suction = v_suction * (1.0 - (wy / channel_height))
+            
+            # Simulate water deflecting slightly up and over the solid rakers
+            dx, dy = 6.0, local_suction * 0.05
+            for start_x in raker_start_positions:
+                if start_x <= wx <= start_x + raker_width and wy <= raker_height:
+                    dy = raker_height * 0.5  # Deflect current over obstruction
+            
+            # Plot faded vector arrows representing clean water flow paths
+            ax.arrow(wx, wy, dx, dy, head_width=0.6, head_length=0.9, color='#bee3f8', alpha=0.35)
+
+    print(f"Simulating polymer physics trajectories...")
     for p_id in range(total_particles):
-        # Pick a random polymer type from our material database
         poly_key = random.choice(list(polymer_profiles.keys()))
         poly = polymer_profiles[poly_key]
         
-        # Calculate individual physical characteristics
         radius = random.uniform(poly["size_range"][0], poly["size_range"][1]) / 2.0
         volume = (4.0 / 3.0) * math.pi * (radius ** 3)
         mass = poly["density"] * volume
         cross_area = math.pi * (radius ** 2)
         
-        # Compute constant buoyancy/gravitational baseline acceleration component
         a_buoy = ((poly["density"] - rho_fluid) / poly["density"]) * g
         
-        # Dispersion mechanics across input channel mouth
         particle_x = 0.0
         particle_y = 5.0 + random.uniform(0.0, 40.0)
         velocity_y = 0.0
@@ -72,19 +86,16 @@ def run_polymer_simulation():
             for _ in range(sub_steps):
                 particle_x += flow_speed_x * dt
                 
-                # Dynamic Fluid Drag Equation (competing with buoyancy/suction)
                 relative_v_y = velocity_y - v_suction
                 drag_force = -0.5 * C_d * rho_fluid * cross_area * relative_v_y * abs(relative_v_y)
                 a_drag = drag_force / mass
                 
-                # Net total kinematics resolution
                 wobble = math.sin(elapsed_time * 25 + p_id) * 0.2
                 total_a_y = a_buoy + a_drag
                 
                 velocity_y += total_a_y * dt
                 particle_y += (velocity_y * dt) + (wobble / sub_steps)
                 
-                # Boundary Raker Structural Collision Matrix
                 for start_x in raker_start_positions:
                     peak_x = start_x + peak_offset
                     end_x = start_x + raker_width
@@ -96,7 +107,7 @@ def run_polymer_simulation():
                         current_wall_height = raker_height - ((raker_height / (raker_width - peak_offset)) * (particle_x - peak_x))
                         
                     if start_x <= particle_x <= end_x and particle_y <= current_wall_height:
-                        velocity_y = abs(velocity_y) * 0.8 + 150.0  # Elastic momentum ricochet bounce
+                        velocity_y = abs(velocity_y) * 0.8 + 150.0  
                         particle_y = current_wall_height + 0.1
             
             if particle_y > channel_height:
@@ -111,52 +122,39 @@ def run_polymer_simulation():
             y_paths.append(particle_y)
             elapsed_time += time_step
             
-        # Log analytics criteria
         stats[poly_key]["tested"] += 1
         if status == "TRACKING":
             stats[poly_key]["captured"] += 1
-            plt.plot(x_paths, y_paths, color=poly["color"], alpha=0.5, linewidth=1.5)
+            ax.plot(x_paths, y_paths, color=poly["color"], alpha=0.6, linewidth=1.5)
         else:
-            plt.plot(x_paths, y_paths, color=poly["color"], alpha=0.7, linewidth=1.5, linestyle=':')
+            ax.plot(x_paths, y_paths, color=poly["color"], alpha=0.7, linewidth=1.5, linestyle=':')
 
-    # Print out material-specific analytics metrics
-    print("\n----------------------------------------------------")
-    print("POLYMER MATERIAL EFFICIENCY BREAKDOWN:")
-    print("----------------------------------------------------")
-    grand_tested = 0
-    grand_captured = 0
-    
-    for key, data in stats.items():
-        grand_tested += data["tested"]
-        grand_captured += data["captured"]
-        pct = (data["captured"] / data["tested"] * 100) if data["tested"] > 0 else 0
-        print(f"{polymer_profiles[key]['name']:<26} | Captured: {data['captured']}/{data['tested']} | Yield: {pct:.1f}%")
-        
+    grand_tested = sum(d["tested"] for d in stats.values())
+    grand_captured = sum(d["captured"] for d in stats.values())
     global_yield = (grand_captured / grand_tested) * 100
-    print(f"\nOVERALL SIMULATION CORE YIELD: {global_yield:.1f}%")
-    print("----------------------------------------------------")
     
-    # Plot Environment Layout Configurations
-    plt.axhline(y=channel_height, color='#2b6cb0', linestyle='--', linewidth=2, label='Enclosure Ceiling')
-    plt.axhline(y=0, color='#e53e3e', linestyle='-', linewidth=2, label='Suction Pores Bed')
+    # Plot Environment Accents
+    ax.axhline(y=channel_height, color='#2b6cb0', linestyle='--', linewidth=2, label='Enclosure Ceiling')
+    ax.axhline(y=0, color='#e53e3e', linestyle='-', linewidth=2, label='Suction Pores Bed')
     
     for start_x in raker_start_positions:
         rx = [start_x, start_x + peak_offset, start_x + raker_width]
         ry = [0.0, raker_height, 0.0]
-        plt.fill(rx, ry, color='#4a5568', edgecolor='#2d3748', alpha=0.9)
+        ax.fill(rx, ry, color='#4a5568', edgecolor='#2d3748', alpha=0.9)
     
-    # Dynamic Legend Generation maps directly to polymer matrix metrics
+    # Legend Maps
+    ax.plot([], [], color='#bee3f8', alpha=0.7, linewidth=3, label="Water Vector Current (Fluid Flow)")
     for key, poly in polymer_profiles.items():
-        plt.plot([], [], color=poly["color"], linewidth=2, label=f"{poly['name']}")
-    plt.fill([], [], color='#4a5568', label="Bio-Inspired Gill Rakers")
+        ax.plot([], [], color=poly["color"], linewidth=2, label=f"{poly['name']}")
+    ax.fill([], [], color='#4a5568', label="Bio-Inspired Gill Rakers")
     
-    plt.xlim(-5, channel_length + 5)
-    plt.ylim(-5, channel_height + 5)
-    plt.xlabel('Filter Channel Length (mm)', fontsize=11, fontweight='bold')
-    plt.ylabel('Filter Channel Height (mm)', fontsize=11, fontweight='bold')
-    plt.title(f'Phase 6: Polymorphic Fluid Matrix Testing — Total System Yield: {global_yield:.1f}%', fontsize=12, fontweight='bold', pad=15)
-    plt.grid(True, linestyle=':', alpha=0.4)
-    plt.legend(loc='upper right', fontsize=9)
+    ax.set_xlim(-5, channel_length + 5)
+    ax.set_ylim(-5, channel_height + 5)
+    ax.set_xlabel('Filter Channel Length (mm)', fontsize=11, fontweight='bold')
+    ax.set_ylabel('Filter Channel Height (mm)', fontsize=11, fontweight='bold')
+    ax.set_title(f'Phase 6.1: Manta Ray CFD Engine — Total System Yield: {global_yield:.1f}%', fontsize=12, fontweight='bold', pad=15)
+    ax.grid(True, linestyle=':', alpha=0.3)
+    ax.legend(loc='upper right', fontsize=9)
     plt.show()
 
 if __name__ == "__main__":
