@@ -118,6 +118,14 @@ with st.sidebar:
         
         available_keys = [k for k, active in active_polymers.items() if active]
 
+    # Sidebar UI Declaration Anchor for Stardance Compliance
+    st.divider()
+    st.markdown("### 🤖 UI Declaration")
+    st.caption(
+        "Google Gemini served as an AI programming assistant to optimize script layout and "
+        "CSS parameters. Core kinematics modeling and geometry verification belong entirely to the author."
+    )
+
 # Environment Constants
 channel_length, channel_height, channel_depth = 100.0, 50.0, 50.0
 time_step, rho_fluid, g, v_suction, C_d = 0.01, 1.025e-3, 9810.0, -60.0, 0.47
@@ -300,7 +308,27 @@ with tab3:
     $$Q_{intake} = A_{channel} \cdot v_{flow}$$
     
     Particle kinematics are derived by superimposing localized acceleration fields to evaluate vertical displacement relative to the bio-inspired geometric boundaries:
-    $$a_{buoyancy} = \left(\\frac{\\rho_{polymer} - \\rho_{fluid}}{\\rho_{polymer}}\\right) \cdot g$$
+    $$a_{buoyancy} = \\left(\\frac{\\rho_{polymer} - \\rho_{fluid}}{\\rho_{polymer}}\\right) \cdot g$$
     
     $$F_{drag} = -\\frac{1}{2} C_d \cdot \\rho_{fluid} \cdot A_{cross} \cdot v_{relative} \cdot |v_{relative}|$$
     """)
+
+# -----------------------------------------------------------------------------
+# 7. MAIN INTERFACE AI ATTRIBUTION FOOTER
+# -----------------------------------------------------------------------------
+st.markdown("<br><br>", unsafe_allow_html=True)
+st.divider()
+st.markdown("### 🤖 AI Attribution & Usage Declaration")
+st.caption(
+    "Google Gemini was utilized as an interactive programming assistant throughout this project's development. "
+    "The generative AI model was leveraged strictly to optimize the frontend script architecture, generate the custom CSS glassmorphism "
+    "layout overrides, troubleshoot execution environments, and assist with Git version control branch alignment. "
+    "All core engineering hypotheses, biological modeling concepts, structural geometry rules, and underlying kinematic tracking math "
+    "equations were entirely formulated, derived, and verified independently by the human author."
+)
+st.markdown(
+    "<div style='text-align: center; color: #475569; font-size: 0.8rem; margin-top: 15px; font-family: monospace;'>"
+    "Built for the Stardance Competition. Bridging computational fluid dynamics with environmental engineering."
+    "</div>", 
+    unsafe_allow_html=True
+)
