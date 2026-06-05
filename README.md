@@ -37,9 +37,30 @@ $$F_{drag} = -\frac{1}{2} C_d \cdot \rho_{fluid} \cdot A_{cross} \cdot v_{relati
 
 ## ⚙️ Quick Start (Run Locally)
 
-Want to run the simulation engine on your own machine? 
+Follow these steps to deploy and run the simulation engine on your local machine:
 
-**1. Clone the repository:**
+**1. Clone the repository and navigate into the folder:**
 ```bash
-git clone [https://github.com/prajith-vishnu/manta-ray-filtration-system.git](https://github.com/prajith-vishnu/manta-ray-filtration-system.git)
+git clone https://github.com/prajith-vishnu/manta-ray-filtration-system.git
 cd manta-ray-filtration-system
+```
+
+**2. Install all the required Python libraries:**
+```bash
+pip install streamlit matplotlib pandas
+```
+
+**3. Launch the local Streamlit server to boot the workspace:**
+```bash
+streamlit run web_app.py
+```
+
+---
+
+## 🤖 AI Attribution and Usage Declaration
+Google Gemini was utilized as an interactive programming assistant throughout this project's development. The generative AI model was leveraged strictly to optimize the front-end script architecture, generate the custom CSS glassmorphism layout overrides, troubleshoot macOS network security layers, and assist with Git version control branch alignment. 
+
+All core engineering hypotheses, biological modeling concepts, structural geometry rules, and underlying kinematic tracking math equations were entirely formulated, derived, and verified by the human author.
+
+---
+*Built for the Stardance Competition. Bridging computational fluid dynamics with environmental engineering.*
