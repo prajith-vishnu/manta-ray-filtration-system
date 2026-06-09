@@ -56,11 +56,19 @@ streamlit run web_app.py
 ```
 
 ---
-
 ## 🤖 AI Attribution and Usage Declaration
-Google Gemini was utilized as an interactive programming assistant throughout this project's development. The generative AI model was leveraged strictly to optimize the front-end script architecture, generate the custom CSS glassmorphism layout overrides, troubleshoot macOS network security layers, and assist with Git version control branch alignment. 
+In accordance with responsible engineering practices and modern research transparency guidelines, this project utilizes a collaborative human-AI development framework.
 
-All core engineering hypotheses, biological modeling concepts, structural geometry rules, and underlying kinematic tracking math equations were entirely formulated, derived, and verified by the human author.
+👤 Human Author Contributions
+Core Physics Formulation: Formulated, derived, and verified the underlying Lagrangian kinematic force equations, specular wall-normal reflection rules, and boundary condition limits.
 
+Experimental Methodology: Designed the independent/dependent variable matrices (raker angle vs. deflection performance) and structured the multi-week biofouling degradation index.
+System Design Requirements: Engineered the spatial boundary thresholds, statistical error frameworks, and data pipeline structures for numerical mesh integration.
+
+🤖 Large Language Model (LLM) Assistance
+UI/UX Engineering: Generated front-end interface layout scripts using Streamlit hooks, wide-screen responsive configurations, and layout properties.
+
+Code Optimization & Modernization: Assisted in refactoring global arrays into optimized per-particle sequential execution loops and managing project requirements files (requirements.txt).
+Git Repository Management: Provided tactical troubleshooting guidance for terminal environment deadlocks, remote push sequences, and force-syncing deployment branches.
 ---
 *Built for the Stardance Competition. Bridging computational fluid dynamics with environmental engineering.*
