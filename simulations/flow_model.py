@@ -2,11 +2,13 @@ import math
 import random
 import matplotlib.pyplot as plt
 
-def run_polymer_simulation(raker_height=8.0, flow_speed_x=250.0, total_particles=60, headless=False):
+def run_polymer_simulation(raker_height=8.0, flow_speed_x=250.0, total_particles=60, headless=False, storm_mode=False):
     """
     Advanced CFD Engine optimized for parametric sweeps.
     Accepts dynamic raker heights and water speeds.
     If headless=True, it skips plotting for lightning-fast data crunching.
+    If storm_mode=True, injects random turbulent acceleration noise
+    (same regime as the web app's storm surge toggle).
     """
     if not headless:
         print("====================================================")
@@ -42,7 +44,7 @@ def run_polymer_simulation(raker_height=8.0, flow_speed_x=250.0, total_particles
     if not headless:
         fig, ax = plt.subplots(figsize=(12, 6.5))
     
-    random.seed(101)
+    random.seed(105 if storm_mode else 101)
     
     # 🌊 WATER CURRENT BACKGROUND ENGINE (Calculated if not headless)
     if not headless:
@@ -95,7 +97,7 @@ def run_polymer_simulation(raker_height=8.0, flow_speed_x=250.0, total_particles
                 a_drag = drag_force / mass
                 
                 wobble = math.sin(elapsed_time * 25 + p_id) * 0.2
-                total_a_y = a_buoy + a_drag
+                total_a_y = a_buoy + a_drag + (random.uniform(-45000.0, 45000.0) if storm_mode else 0)
                 
                 velocity_y += total_a_y * dt
                 particle_y += (velocity_y * dt) + (wobble / sub_steps)
@@ -111,7 +113,9 @@ def run_polymer_simulation(raker_height=8.0, flow_speed_x=250.0, total_particles
                         current_wall_height = raker_height - ((raker_height / (raker_width - peak_offset)) * (particle_x - peak_x))
                         
                     if start_x <= particle_x <= end_x and particle_y <= current_wall_height:
-                        velocity_y = abs(velocity_y) * 0.8 + 150.0  
+                        # Elastic bounce with coefficient of restitution 0.65
+                        # (plastic particle on a smooth surface)
+                        velocity_y = -velocity_y * 0.65
                         particle_y = current_wall_height + 0.1
             
             if particle_y > channel_height:

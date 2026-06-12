@@ -1,66 +1,63 @@
-# 🌌 Manta Ray CFD Architecture
+# Manta Ray CFD Filtration Simulator
 
-**Aerospace-Grade Kinematics Tracking for Bio-Mimetic Microplastic Filtration**
+A computational fluid dynamics simulator modeling bio-inspired microplastic filtration — built as a computational extension of the FerroClean research project.
 
 ![Manta Ray CFD Dashboard](dashboard-preview.png)
-*(Live Stardance Submission Dashboard - Real-time Kinematic Canvas)*
 
-## 🚀 The Vision
-Oceanic microplastic pollution requires scalable, non-clogging filtration mechanisms. Nature has already solved this: **Manta rays use cross-flow filtration and gill rakers to separate plankton from seawater without ever clogging.** The **Manta Ray CFD Architecture** is a high-fidelity Python web engine that digitizes and models this exact bio-mimetic process. Built for the Stardance competition, this platform calculates fluid kinematics, volumetric flux, and localized drag forces to simulate how different classifications of microplastics are deflected by structural boundaries.
+## Background
 
-## 🧬 Core Simulation Engine & Physics
+FerroClean (2025-2026) proved ferrofluid magnetic separation achieves up to 100% microplastic removal efficiency from water, winning 3rd place at the NSF-affiliated UNT Physics Science Fair against college-level competitors.
 
-The engine doesn't just draw lines; it tracks discrete polymer masses against continuous fluid dynamics. The mathematical solver evaluates real-world physics at every time step:
+That raised a follow-up question: could passive bio-inspired geometry achieve similar separation without chemical intervention? Manta rays use cross-flow filtration through gill rakers to separate particles from seawater without clogging. This simulator models that mechanism computationally.
 
-### Volumetric Flux
-The system maintains mass continuity by evaluating fluid flux over the designated cross-sectional area:
-$$Q_{intake} = A_{channel} \cdot v_{flow}$$
+## What It Does
 
-### Transport Kinematics
-Individual particle trajectories are calculated through a dynamic balance of buoyancy and drag forces acting on localized plastic masses. When a particle encounters the structural slopes of the "gill rakers," reflection algorithms invert vertical acceleration layers to simulate cross-flow shear:
-$$a_{buoyancy} = \left(\frac{\rho_{polymer} - \rho_{fluid}}{\rho_{polymer}}\right) \cdot g$$
+Simulates microplastic particle transport through manta ray-inspired channel geometry using:
 
-$$F_{drag} = -\frac{1}{2} C_d \cdot \rho_{fluid} \cdot A_{cross} \cdot v_{relative} \cdot |v_{relative}|$$
+- Lagrangian particle tracking with real buoyancy and drag force equations
+- Five real microplastic polymer types (PP, LDPE, PS, PET, PVC) with accurate bulk densities
+- Configurable flow velocity and raker geometry
+- Storm surge mode simulating turbulent conditions
+- Session logging of deflection efficiency metrics
 
-## 🛠️ Enterprise-Grade Features
+## Findings
 
-* **Dynamic Boundary Layer Tracking:** Real-time visualization of particle shear vector reflections across 5 unique geometric raker slopes.
-* **Polymer Mass Profiling:** Simulates exact volumetric bulk densities for PP, LDPE, PS, PET, and PVC to track how different plastics react to identical fluid currents.
-* **Storm Surge Tensors:** A toggleable stress-test mode that injects chaotic velocity tensors and random acceleration noise into the fluid grid.
-* **Live Telemetry Database:** An automated background logger that traces and records parametric sweep variables (Intake Flux, Deflection Purity, Boundary Leakage) into a persistent session state.
+Across a 32-run parameter sweep (raker heights 2–8 mm, flow velocities 150–600 mm/s, 200 particles per run — see `simulation_telemetry.csv`), deflection purity averaged 89.0% under laminar flow conditions. Under storm surge conditions this dropped to 85.6%, with the largest penalty at the reference geometry: at 8 mm rakers and 150 mm/s flow, purity fell from 91.0% (laminar) to 74.5% (turbulent). Purity dropped as low as 49.5% in the worst turbulent configuration.
 
-## 💻 Tech Stack
-* **Backend Physics Engine:** Pure `Python 3` (Vector Mathematics, Kinematic Loops)
-* **Frontend Architecture:** `Streamlit` (Custom Glassmorphism UI, Wide-Layout HUD)
-* **Data Visualization:** `Matplotlib` (Transparent HUD Canvas Rendering)
-* **Data Logging:** `Pandas` (Real-time telemetry trace formatting)
+Passive geometry reached 100% deflection only at high flow velocities under laminar conditions — it cannot guarantee complete separation across realistic conditions. These findings support continued development of active chemical methods like ferrofluid magnetic separation.
 
-## ⚙️ Quick Start (Run Locally)
+Negative results are valid scientific findings.
 
-Follow these steps to deploy and run the simulation engine on your local machine:
+## Research Series
 
-**1. Clone the repository and navigate into the folder:**
+- **FerroClean v1 (2025-2026):** Physical experiments, 100% removal efficiency, UNT Science Fair winner
+- **Manta Ray CFD (2026):** Computational modeling, passive geometry cannot guarantee full separation under turbulence (89.0% laminar vs. 85.6% turbulent average purity)
+- **FerroClean v2 (planned):** Improved methodology targeting ISEF submission
+
+## Live Demo
+
+https://manta-ray-filtration-system.streamlit.app
+
+## Tech Stack
+
+- Python 3
+- Streamlit
+- Matplotlib
+- Pandas
+
+## Run Locally
+
 ```bash
-git clone https://github.com/prajith-vishnu/manta-ray-filtration-system.git
+git clone https://github.com/prajith-vishnu/manta-ray-filtration-system
 cd manta-ray-filtration-system
-```
-
-**2. Install all the required Python libraries:**
-```bash
-pip install streamlit matplotlib pandas
-```
-
-**3. Launch the local Streamlit server to boot the workspace:**
-```bash
+pip install -r requirements.txt
 streamlit run web_app.py
 ```
 
----
+## AI Usage
 
-## 🤖 AI Attribution and Usage Declaration
-Google Gemini was utilized as an interactive programming assistant throughout this project's development. The generative AI model was leveraged strictly to optimize the front-end script architecture, generate the custom CSS glassmorphism layout overrides, troubleshoot macOS network security layers, and assist with Git version control branch alignment. 
+Claude (Anthropic) was used as a coding assistant to implement the Streamlit interface and optimize simulation loops. Physics formulation, research direction, and scientific interpretation by Prajith Vishnu Rajesh Kumar.
 
-All core engineering hypotheses, biological modeling concepts, structural geometry rules, and underlying kinematic tracking math equations were entirely formulated, derived, and verified by the human author.
+## License
 
----
-*Built for the Stardance Competition. Bridging computational fluid dynamics with environmental engineering.*
+MIT
