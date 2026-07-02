@@ -159,7 +159,7 @@ with st.sidebar:
         
         available_keys = [k for k, active in active_polymers.items() if active]
 
-    # Sidebar AI Declaration Anchor for Stardance Compliance
+    # Sidebar AI Declaration Anchor for Hack Club Compliance
     st.divider()
     st.markdown("### 🤖 AI Declaration")
     st.caption(
@@ -444,7 +444,7 @@ st.caption(
     "All physics, research direction, and scientific interpretation by the author."
 )
 st.caption(
-    "Built for Hack Club Stardance 2026 | "
+    "Built for Hack Club 2026 | "
     "Computational extension of the FerroClean "
     "microplastics research project | MIT License"
 )
