@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manta Ray | CFD Simulator</title>
+<meta name="description" content="Bio-inspired microplastic filtration simulator — Lagrangian particle tracking through manta ray gill raker geometry. Computational extension of the FerroClean research project.">
+<meta property="og:title" content="Manta Ray CFD Simulator">
+<meta property="og:description" content="Can passive bio-inspired geometry separate microplastics from seawater? Interactive particle-transport simulation.">
+<meta property="og:image" content="/dashboard-preview.png">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000a0e;
+    --panel: rgba(0, 20, 30, 0.8);
+    --border: rgba(0, 229, 255, 0.15);
+    --cyan: #00e5ff;
+    --green: #00ff9d;
+    --orange: #ff6b35;
+    --muted: #4a6fa5;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--bg);
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    min-height: 100vh;
+  }
+  h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; }
+
+  /* ------------------------------ sidebar ------------------------------- */
+  .sidebar {
+    border-right: 1px solid var(--border);
+    padding: 1.25rem 1.1rem 2rem;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,229,255,0.2) transparent;
+  }
+  .console-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--cyan);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    padding: 0.5rem 0 1rem;
+    border-bottom: 1px solid rgba(0,229,255,0.1);
+    margin-bottom: 1rem;
+  }
+  details.expander {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 0.75rem;
+  }
+  details.expander summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 0.7rem 0.9rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    user-select: none;
+  }
+  details.expander summary::-webkit-details-marker { display: none; }
+  details.expander summary::after {
+    content: "▾";
+    float: right;
+    color: var(--muted);
+    transition: transform 0.15s;
+  }
+  details.expander:not([open]) summary::after { transform: rotate(-90deg); }
+  .expander-body { padding: 0.25rem 0.9rem 0.9rem; }
+
+  .ctrl-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 0.8rem;
+    color: #cfe3f5;
+    margin: 0.6rem 0 0.35rem;
+  }
+  .ctrl-label .val {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--cyan);
+    font-size: 0.8rem;
+  }
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(0,229,255,0.18);
+    outline: none;
+    margin: 0.2rem 0 0.4rem;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 10px rgba(0,229,255,0.6);
+    cursor: pointer;
+    border: none;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 10px rgba(0,229,255,0.6);
+    cursor: pointer;
+    border: none;
+  }
+
+  .switch-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0.7rem 0 0.2rem;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: #cfe3f5;
+  }
+  .switch {
+    position: relative;
+    width: 36px; height: 20px;
+    background: rgba(74,111,165,0.35);
+    border-radius: 10px;
+    transition: background 0.15s;
+    flex: none;
+  }
+  .switch::after {
+    content: "";
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #cfe3f5;
+    transition: transform 0.15s, background 0.15s;
+  }
+  #storm-toggle { display: none; }
+  #storm-toggle:checked + .switch { background: var(--orange); }
+  #storm-toggle:checked + .switch::after { transform: translateX(16px); background: #fff; }
+
+  .poly-header {
+    color: var(--muted);
+    font-size: 0.68rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-family: 'JetBrains Mono', monospace;
+    margin: 0.9rem 0 0.45rem;
+  }
+  .poly-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.22rem 0;
+    font-size: 0.78rem;
+    color: #cfe3f5;
+    cursor: pointer;
+  }
+  .poly-row input[type="checkbox"] {
+    accent-color: var(--cyan);
+    width: 14px; height: 14px;
+    cursor: pointer;
+  }
+  .poly-dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    flex: none;
+  }
+  .poly-density {
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    margin-left: auto;
+  }
+
+  .sidebar-divider {
+    border: none;
+    border-top: 1px solid rgba(0,229,255,0.1);
+    margin: 1.25rem 0 1rem;
+  }
+  .ai-decl h3 { font-size: 0.95rem; margin-bottom: 0.4rem; }
+  .ai-decl p { font-size: 0.72rem; color: var(--muted); line-height: 1.55; }
+
+  /* -------------------------------- main -------------------------------- */
+  main { padding: 0 2.5rem 2rem; min-width: 0; }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--cyan);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin: 2rem 0 0.5rem;
+  }
+  .hero-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .hero-title span { color: var(--cyan); }
+  .hero-sub {
+    font-size: 0.9rem;
+    color: var(--muted);
+    margin-top: 0.75rem;
+    max-width: 600px;
+    line-height: 1.6;
+  }
+
+  .context-box {
+    background: rgba(0, 229, 255, 0.03);
+    border: 1px solid rgba(0, 229, 255, 0.12);
+    border-radius: 4px;
+    padding: 1rem 1.25rem;
+    margin: 1.25rem 0 1rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .context-box .tag {
+    color: var(--cyan);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    display: block;
+    margin-bottom: 0.7rem;
+  }
+  .context-box .hl { color: var(--green); }
+
+  .info-banner {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.85rem 1.1rem;
+    font-size: 0.85rem;
+    color: #cfe3f5;
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+  }
+  .error-banner {
+    background: rgba(239, 68, 68, 0.07);
+    border: 1px solid rgba(239, 68, 68, 0.45);
+    border-radius: 4px;
+    padding: 1rem 1.25rem;
+    font-size: 0.9rem;
+    color: #fca5a5;
+    margin: 1.5rem 0;
+    display: none;
+  }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.6rem;
+    margin-bottom: 1.75rem;
+  }
+  .metric {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--cyan);
+    border-radius: 4px;
+    padding: 1.25rem;
+  }
+  .metric .m-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+  .metric .m-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--cyan);
+    text-shadow: 0 0 20px rgba(0,229,255,0.25);
+    white-space: nowrap;
+  }
+  .metric .m-sub {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 0.3rem;
+    line-height: 1.4;
+  }
+  .metric.green { border-left-color: var(--green); }
+  .metric.green .m-value { color: var(--green); text-shadow: 0 0 20px rgba(0,255,157,0.25); }
+  .metric.orange { border-left-color: var(--orange); }
+  .metric.orange .m-value { color: var(--orange); text-shadow: 0 0 20px rgba(255,107,53,0.25); }
+
+  .tabs {
+    display: flex;
+    gap: 1.75rem;
+    border-bottom: 1px solid rgba(0,229,255,0.12);
+    margin-bottom: 1.25rem;
+  }
+  .tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 0.6rem 0.1rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 2px;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .canvas-wrap { position: relative; width: 100%; }
+  #sim-canvas {
+    width: 100%;
+    aspect-ratio: 14 / 5.5;
+    display: block;
+    cursor: crosshair;
+  }
+  .canvas-caption {
+    font-size: 0.72rem;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 1px;
+    margin-top: 0.5rem;
+  }
+  #tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: rgba(0, 16, 24, 0.95);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.55rem 0.7rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    line-height: 1.6;
+    color: #cfe3f5;
+    display: none;
+    z-index: 5;
+    white-space: nowrap;
+  }
+  #tooltip .t-name { font-weight: 700; }
+  #tooltip .t-muted { color: var(--muted); }
+
+  table.telemetry {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+  }
+  table.telemetry th {
+    text-align: left;
+    color: var(--muted);
+    font-weight: 400;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-size: 0.65rem;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid rgba(0,229,255,0.15);
+  }
+  table.telemetry td {
+    padding: 0.45rem 0.75rem;
+    border-bottom: 1px solid rgba(0,229,255,0.06);
+    color: #cfe3f5;
+  }
+  table.telemetry td.purity { color: var(--green); }
+  table.telemetry td.turb { color: var(--orange); }
+  table.telemetry td.lam { color: var(--cyan); }
+  .table-scroll { overflow-x: auto; }
+
+  .equations h4 { font-size: 1rem; margin-bottom: 0.75rem; }
+  .equations p { font-size: 0.85rem; color: var(--muted); line-height: 1.6; margin: 0.75rem 0; }
+  .math {
+    font-family: 'STIX Two Math', 'Cambria Math', Georgia, serif;
+    font-style: italic;
+    font-size: 1.15rem;
+    color: #e8f4ff;
+    text-align: center;
+    margin: 1.1rem 0;
+  }
+  .math sub { font-size: 0.7em; font-style: normal; color: #9db8d8; }
+  .frac {
+    display: inline-flex;
+    flex-direction: column;
+    vertical-align: middle;
+    text-align: center;
+    margin: 0 0.2em;
+  }
+  .frac .num { border-bottom: 1px solid #e8f4ff; padding: 0 0.3em 0.1em; }
+  .frac .den { padding: 0.1em 0.3em 0; }
+
+  footer {
+    border-top: 1px solid rgba(0,229,255,0.1);
+    margin-top: 2.5rem;
+    padding-top: 1rem;
+    font-size: 0.72rem;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  footer a { color: var(--muted); }
+
+  @media (max-width: 900px) {
+    body { grid-template-columns: 1fr; }
+    .sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+    main { padding: 0 1.25rem 1.5rem; }
+    .metrics { grid-template-columns: repeat(2, 1fr); }
+    .hero-title { font-size: 1.9rem; }
+    .tabs { gap: 1rem; overflow-x: auto; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ------------------------- CONTROL CONSOLE ------------------------- -->
+<aside class="sidebar">
+  <div class="console-title">⬡ Simulation Parameters</div>
+
+  <details class="expander" open>
+    <summary>📐 Structural Geometry</summary>
+    <div class="expander-body">
+      <div class="ctrl-label"><span>Raker Height (mm)</span><span class="val" id="raker-val">8.0</span></div>
+      <input type="range" id="raker" min="0" max="14" step="0.1" value="8">
+    </div>
+  </details>
+
+  <details class="expander" open>
+    <summary>🌊 Fluid Kinematics</summary>
+    <div class="expander-body">
+      <div class="ctrl-label"><span>Continuous Flow Velocity (mm/s)</span><span class="val" id="flow-val">250</span></div>
+      <input type="range" id="flow" min="50" max="800" step="1" value="250">
+      <label class="switch-row">
+        <input type="checkbox" id="storm-toggle">
+        <span class="switch"></span>
+        <span>⚠️ Inject Storm Surge Tensors</span>
+      </label>
+    </div>
+  </details>
+
+  <details class="expander" open>
+    <summary>🦠 Pollutant Profiles</summary>
+    <div class="expander-body">
+      <div class="ctrl-label"><span>Debris Load (Unit Count)</span><span class="val" id="count-val">40</span></div>
+      <input type="range" id="count" min="10" max="100" step="1" value="40">
+      <div class="poly-header">Active Injection Targets</div>
+      <div id="poly-list"></div>
+    </div>
+  </details>
+
+  <hr class="sidebar-divider">
+  <div class="ai-decl">
+    <h3>🤖 AI Declaration</h3>
+    <p>Claude (Anthropic) was used as a coding assistant to implement the UI and optimize
+    the simulation loops. Physics formulation and research direction by
+    Prajith Vishnu Rajesh Kumar.</p>
+  </div>
+</aside>
+
+<!-- ------------------------------ MAIN ------------------------------- -->
+<main>
+  <div class="eyebrow">Ferroclean Research Series — Computational Module</div>
+  <h1 class="hero-title">Manta Ray<br><span>CFD Simulator</span></h1>
+  <p class="hero-sub">
+    Computational extension of the FerroClean microplastics research project.
+    Modeling bio-inspired gill raker filtration geometry against real polymer bulk densities.
+  </p>
+
+  <div class="context-box">
+    <span class="tag">RESEARCH CONTEXT</span>
+    This simulator extends the <span class="hl">FerroClean</span> research project — which achieved
+    up to <span class="hl">100% microplastic removal efficiency</span> via ferrofluid magnetic
+    separation (UNT Science Fair, 2026, 3rd Place). While FerroClean uses chemical intervention,
+    this model asks whether passive bio-inspired geometry alone can achieve comparable separation.
+  </div>
+
+  <div class="info-banner">
+    💡 Configure fluid parameters in the console to simulate microplastic particle behavior
+    through bio-inspired gill raker geometry. Every change recalculates all particle trajectories instantly.
+  </div>
+
+  <div class="error-banner" id="error-banner">
+    🚨 ENGINE FAULT: Missing mass profiles. Select at least one polymer in the console to calculate trajectories.
+  </div>
+
+  <div id="dashboard">
+    <div class="metrics">
+      <div class="metric">
+        <div class="m-label">Intake Flux Stream</div>
+        <div class="m-value" id="m-intake">—</div>
+        <div class="m-sub">Q_in — volumetric intake</div>
+      </div>
+      <div class="metric">
+        <div class="m-label">Filtrate Discharge</div>
+        <div class="m-value" id="m-filtrate">—</div>
+        <div class="m-sub">Q_out — bottom filtrate</div>
+      </div>
+      <div class="metric green">
+        <div class="m-label">Deflection Purity</div>
+        <div class="m-value" id="m-purity">—</div>
+        <div class="m-sub">FerroClean achieved 100% via magnetic removal</div>
+      </div>
+      <div class="metric orange" id="m-leak-card">
+        <div class="m-label">Boundary Leakage</div>
+        <div class="m-value" id="m-leak">—</div>
+        <div class="m-sub">Escaped units</div>
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button class="tab-btn active" data-tab="traj">PARTICLE TRAJECTORIES</button>
+      <button class="tab-btn" data-tab="log">TELEMETRY LOG</button>
+      <button class="tab-btn" data-tab="eq">GOVERNING EQUATIONS</button>
+    </div>
+
+    <div class="tab-panel active" id="tab-traj">
+      <div class="canvas-wrap">
+        <canvas id="sim-canvas"></canvas>
+        <div id="tooltip"></div>
+      </div>
+      <div class="canvas-caption">
+        SOLID — DEFLECTED (CAPTURED) &nbsp;·&nbsp; DOTTED — ESCAPED THROUGH FLOOR &nbsp;·&nbsp; HOVER A TRAJECTORY FOR PARTICLE DATA
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-log">
+      <div class="table-scroll">
+        <table class="telemetry">
+          <thead>
+            <tr><th>Run #</th><th>Time</th><th>Velocity</th><th>Geometry</th><th>Load</th><th>Purity</th><th>Regime</th></tr>
+          </thead>
+          <tbody id="log-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-eq">
+      <div class="equations">
+        <h4>Governing Hydrodynamic Equations</h4>
+        <p>The simulation environment evaluates fluid flux iteratively to maintain mass continuity.
+        Total intake volume flux is determined by:</p>
+        <div class="math">Q<sub>intake</sub> = A<sub>channel</sub> · v<sub>flow</sub></div>
+        <p>Particle kinematics are derived by superimposing localized acceleration fields to evaluate
+        vertical displacement relative to the bio-inspired geometric boundaries:</p>
+        <div class="math">
+          a<sub>buoyancy</sub> =
+          <span class="frac">
+            <span class="num">ρ<sub>polymer</sub> − ρ<sub>fluid</sub></span>
+            <span class="den">ρ<sub>polymer</sub></span>
+          </span>
+          · g
+        </div>
+        <div class="math">F<sub>drag</sub> = −&frac12; C<sub>d</sub> · ρ<sub>fluid</sub> · A<sub>cross</sub> · v<sub>rel</sub> · |v<sub>rel</sub>|</div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Claude (Anthropic) assisted with code implementation. All physics, research direction, and
+    scientific interpretation by the author.<br>
+    Built for Hack Club 2026 | Computational extension of the FerroClean microplastics research
+    project | MIT License |
+    <a href="https://github.com/prajith-vishnu/manta-ray-filtration-system">Source on GitHub</a>
+  </footer>
+</main>
+
+<script>
+"use strict";
+
+/* ------------------------- constants (mirror web_app.py) ------------------------- */
+const CH_LEN = 100.0, CH_HEIGHT = 50.0, CH_DEPTH = 50.0;
+const TIME_STEP = 0.01, RHO_FLUID = 1.025e-3, G = 9810.0, V_SUCTION = -60.0, C_D = 0.47;
+const RAKER_STARTS = [20.0, 35.0, 50.0, 65.0, 80.0], RAKER_WIDTH = 8.0, PEAK_OFFSET = 6.0;
+
+const POLYMERS = {
+  PP:   { name: "Polypropylene",       density: 0.90e-3, sizeRange: [1.5, 4.0], color: "#00f2fe" },
+  LDPE: { name: "Low-Density Poly",    density: 0.92e-3, sizeRange: [1.0, 3.0], color: "#10b981" },
+  PS:   { name: "Polystyrene",         density: 1.05e-3, sizeRange: [0.5, 2.0], color: "#f59e0b" },
+  PET:  { name: "Polyethylene (PET)",  density: 1.38e-3, sizeRange: [0.5, 2.5], color: "#ec4899" },
+  PVC:  { name: "Polyvinyl Chloride",  density: 1.40e-3, sizeRange: [1.0, 4.5], color: "#ef4444" }
+};
+
+/* Seeded PRNG so a given parameter set always reproduces the same trajectories,
+   matching the deterministic seeding in the Streamlit version. */
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const uniform = (rng, a, b) => a + rng() * (b - a);
+
+/* ------------------------------- physics solver ------------------------------- */
+function simulate(p) {
+  const rng = mulberry32(p.storm ? 105 : 101);
+  const particles = [];
+  let captured = 0;
+
+  for (let pId = 0; pId < p.count; pId++) {
+    const key = p.active[Math.floor(rng() * p.active.length)];
+    const poly = POLYMERS[key];
+
+    const radius = uniform(rng, poly.sizeRange[0], poly.sizeRange[1]) / 2.0;
+    const volume = (4.0 / 3.0) * Math.PI * radius ** 3;
+    const mass = poly.density * volume;
+    const crossArea = Math.PI * radius ** 2;
+    const aBuoy = ((poly.density - RHO_FLUID) / poly.density) * G;
+
+    let x = 0.0, y = 5.0 + uniform(rng, 0.0, 40.0), vy = 0.0, t = 0.0;
+    const xs = [x], ys = [y];
+    let status = "TRACKING";
+
+    outer:
+    while (x < CH_LEN) {
+      const subSteps = 8, dt = TIME_STEP / subSteps;
+      for (let s = 0; s < subSteps; s++) {
+        x += p.flow * dt;
+        const relVy = vy - V_SUCTION;
+        const dragForce = -0.5 * C_D * RHO_FLUID * crossArea * relVy * Math.abs(relVy);
+        const aDrag = dragForce / mass;
+
+        const wobble = Math.sin(t * 25 + pId) * 0.2;
+        const aTotal = aBuoy + aDrag + (p.storm ? uniform(rng, -45000.0, 45000.0) : 0);
+
+        vy += aTotal * dt;
+        y += vy * dt + wobble / subSteps;
+
+        for (const startX of RAKER_STARTS) {
+          const peakX = startX + PEAK_OFFSET, endX = startX + RAKER_WIDTH;
+          let wall = 0.0;
+          if (startX <= x && x <= peakX) {
+            wall = (p.raker / PEAK_OFFSET) * (x - startX);
+          } else if (peakX < x && x <= endX) {
+            wall = p.raker - (p.raker / (RAKER_WIDTH - PEAK_OFFSET)) * (x - peakX);
+          }
+          if (startX <= x && x <= endX && y <= wall) {
+            /* Elastic bounce, coefficient of restitution 0.65 */
+            vy = -vy * 0.65;
+            y = wall + 0.1;
+          }
+        }
+
+        if (y > CH_HEIGHT) {
+          y = CH_HEIGHT; vy = -vy * 0.2;
+        } else if (y <= 0.0) {
+          status = "ESCAPED";
+          break outer;
+        }
+
+        xs.push(x); ys.push(y);
+        t += dt;
+      }
+    }
+
+    if (status === "TRACKING") captured++;
+    particles.push({ key, poly, radius, status, xs, ys });
+  }
+  return { particles, captured };
+}
+
+/* ------------------------------- canvas renderer ------------------------------- */
+const canvas = document.getElementById("sim-canvas");
+const ctx = canvas.getContext("2d");
+const tooltip = document.getElementById("tooltip");
+const MARGIN = { l: 62, r: 14, t: 12, b: 46 };
+const WX0 = -2, WX1 = CH_LEN + 2, WY0 = -2, WY1 = CH_HEIGHT + 2;
+
+let lastResult = null;
+let lastParams = null;
+let hoverIdx = -1;
+
+function fitCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { w, h };
+}
+
+function makeMapper(w, h) {
+  const pw = w - MARGIN.l - MARGIN.r, ph = h - MARGIN.t - MARGIN.b;
+  return {
+    x: wx => MARGIN.l + ((wx - WX0) / (WX1 - WX0)) * pw,
+    y: wy => MARGIN.t + ((WY1 - wy) / (WY1 - WY0)) * ph,
+    pw, ph
+  };
+}
+
+function drawArrow(m, x0, y0, x1, y1) {
+  const sx0 = m.x(x0), sy0 = m.y(y0), sx1 = m.x(x1), sy1 = m.y(y1);
+  ctx.beginPath();
+  ctx.moveTo(sx0, sy0);
+  ctx.lineTo(sx1, sy1);
+  ctx.stroke();
+  const ang = Math.atan2(sy1 - sy0, sx1 - sx0);
+  const hl = 6, hw = 2.6;
+  ctx.beginPath();
+  ctx.moveTo(sx1, sy1);
+  ctx.lineTo(sx1 - hl * Math.cos(ang) + hw * Math.sin(ang), sy1 - hl * Math.sin(ang) - hw * Math.cos(ang));
+  ctx.lineTo(sx1 - hl * Math.cos(ang) - hw * Math.sin(ang), sy1 - hl * Math.sin(ang) + hw * Math.cos(ang));
+  ctx.closePath();
+  ctx.fill();
+}
+
+function draw() {
+  if (!lastResult) return;
+  const { w, h } = fitCanvas();
+  const m = makeMapper(w, h);
+  ctx.clearRect(0, 0, w, h);
+
+  /* water-depth gradient: darker at the seafloor, lighter near the surface */
+  const grad = ctx.createLinearGradient(0, m.y(WY1), 0, m.y(WY0));
+  grad.addColorStop(0, "#00141e");
+  grad.addColorStop(1, "#000a0e");
+  ctx.fillStyle = grad;
+  ctx.fillRect(m.x(WX0), m.y(WY1), m.pw, m.ph);
+
+  /* grid */
+  ctx.strokeStyle = "rgba(0,229,255,0.05)";
+  ctx.lineWidth = 1;
+  ctx.font = "10px 'JetBrains Mono', monospace";
+  ctx.fillStyle = "#4a6fa5";
+  for (let gx = 0; gx <= 100; gx += 20) {
+    ctx.beginPath();
+    ctx.moveTo(m.x(gx), m.y(WY0)); ctx.lineTo(m.x(gx), m.y(WY1));
+    ctx.stroke();
+    ctx.textAlign = "center";
+    ctx.fillText(String(gx), m.x(gx), m.y(WY0) + 16);
+  }
+  for (let gy = 0; gy <= 50; gy += 10) {
+    ctx.beginPath();
+    ctx.moveTo(m.x(WX0), m.y(gy)); ctx.lineTo(m.x(WX1), m.y(gy));
+    ctx.stroke();
+    ctx.textAlign = "right";
+    ctx.fillText(String(gy), m.x(WX0) - 8, m.y(gy) + 3.5);
+  }
+
+  /* axis titles */
+  ctx.fillStyle = "#4a6fa5";
+  ctx.font = "11px 'JetBrains Mono', monospace";
+  ctx.textAlign = "center";
+  ctx.fillText("Horizontal Flow Displacement (x / mm)", MARGIN.l + m.pw / 2, h - 10);
+  ctx.save();
+  ctx.translate(15, MARGIN.t + m.ph / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText("Filter Pore Clearance (y / mm)", 0, 0);
+  ctx.restore();
+
+  /* boundary lines: dashed cyan surface, solid orange seafloor */
+  ctx.strokeStyle = "rgba(0,229,255,0.3)";
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([6, 5]);
+  ctx.beginPath();
+  ctx.moveTo(m.x(WX0), m.y(CH_HEIGHT)); ctx.lineTo(m.x(WX1), m.y(CH_HEIGHT));
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = "rgba(255,107,53,0.35)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(m.x(WX0), m.y(0)); ctx.lineTo(m.x(WX1), m.y(0));
+  ctx.stroke();
+
+  /* vector field (matches the matplotlib quiver logic) */
+  const p = lastParams;
+  ctx.strokeStyle = "rgba(0,229,255,0.2)";
+  ctx.fillStyle = "rgba(0,229,255,0.2)";
+  ctx.lineWidth = 1;
+  const GRID_X = 24, GRID_Y = 12;
+  for (let i = 0; i < GRID_X; i += 2) {
+    const wx = i * (CH_LEN / (GRID_X - 1));
+    for (let j = 0; j < GRID_Y; j += 2) {
+      const wy = j * (CH_HEIGHT / (GRID_Y - 1));
+      const localSuction = V_SUCTION * (1.0 - wy / CH_HEIGHT);
+      let dx = p.flow * 0.024;
+      let dy = localSuction * 0.05;
+      if (p.storm) {
+        dy += Math.sin(wx * 0.15 + wy * 0.2) * 2.5;
+        dx += Math.cos(wy * 0.4) * 1.0;
+      }
+      for (const startX of RAKER_STARTS) {
+        if (startX <= wx && wx <= startX + RAKER_WIDTH && wy <= p.raker) {
+          dy = p.raker * 0.5;
+        }
+      }
+      drawArrow(m, wx, wy, wx + dx, wy + dy);
+    }
+  }
+
+  /* rakers */
+  for (const startX of RAKER_STARTS) {
+    ctx.beginPath();
+    ctx.moveTo(m.x(startX), m.y(0));
+    ctx.lineTo(m.x(startX + PEAK_OFFSET), m.y(p.raker));
+    ctx.lineTo(m.x(startX + RAKER_WIDTH), m.y(0));
+    ctx.closePath();
+    ctx.fillStyle = "#001a24";
+    ctx.fill();
+    ctx.strokeStyle = "#004d66";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  /* trajectories: escaped (dotted, faint) under captured (solid) */
+  const passes = [
+    lastResult.particles.map((pt, i) => ({ pt, i })).filter(o => o.pt.status === "ESCAPED"),
+    lastResult.particles.map((pt, i) => ({ pt, i })).filter(o => o.pt.status === "TRACKING")
+  ];
+  for (const pass of passes) {
+    for (const { pt, i } of pass) {
+      if (i === hoverIdx) continue;
+      strokePath(m, pt, false);
+    }
+  }
+  if (hoverIdx >= 0 && lastResult.particles[hoverIdx]) {
+    strokePath(m, lastResult.particles[hoverIdx], true);
+  }
+}
+
+function strokePath(m, pt, highlight) {
+  const escaped = pt.status === "ESCAPED";
+  ctx.beginPath();
+  ctx.moveTo(m.x(pt.xs[0]), m.y(pt.ys[0]));
+  for (let k = 1; k < pt.xs.length; k++) ctx.lineTo(m.x(pt.xs[k]), m.y(pt.ys[k]));
+  ctx.setLineDash(escaped ? [2, 4] : []);
+  ctx.lineWidth = highlight ? 2.5 : 1.5;
+  ctx.globalAlpha = highlight ? 1 : (escaped ? 0.3 : 0.9);
+  ctx.strokeStyle = pt.poly.color;
+  if (highlight) {
+    ctx.shadowColor = pt.poly.color;
+    ctx.shadowBlur = 8;
+  }
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
+  ctx.setLineDash([]);
+}
+
+/* ------------------------------- hover tooltip ------------------------------- */
+let rafPending = false;
+canvas.addEventListener("mousemove", ev => {
+  if (!lastResult || rafPending) return;
+  rafPending = true;
+  requestAnimationFrame(() => {
+    rafPending = false;
+    const rect = canvas.getBoundingClientRect();
+    const mx = ev.clientX - rect.left, my = ev.clientY - rect.top;
+    const m = makeMapper(canvas.clientWidth, canvas.clientHeight);
+
+    let best = -1, bestD = 9 * 9;
+    lastResult.particles.forEach((pt, i) => {
+      const step = Math.max(1, Math.floor(pt.xs.length / 220));
+      for (let k = 0; k < pt.xs.length; k += step) {
+        const dx = m.x(pt.xs[k]) - mx, dy = m.y(pt.ys[k]) - my;
+        const d = dx * dx + dy * dy;
+        if (d < bestD) { bestD = d; best = i; }
+      }
+    });
+
+    if (best !== hoverIdx) {
+      hoverIdx = best;
+      draw();
+    }
+    if (best >= 0) {
+      const pt = lastResult.particles[best];
+      tooltip.innerHTML =
+        '<span class="t-name" style="color:' + pt.poly.color + '">● ' + pt.poly.name + ' (' + pt.key + ')</span><br>' +
+        '<span class="t-muted">diameter</span> ' + (pt.radius * 2).toFixed(2) + ' mm<br>' +
+        '<span class="t-muted">density</span> ' + (pt.poly.density * 1000).toFixed(2) + ' g/cm³<br>' +
+        '<span class="t-muted">status</span> ' + (pt.status === "TRACKING" ? "DEFLECTED ✓" : "ESCAPED ✗");
+      tooltip.style.display = "block";
+      const tw = tooltip.offsetWidth;
+      tooltip.style.left = Math.min(mx + 14, canvas.clientWidth - tw - 4) + "px";
+      tooltip.style.top = (my + 14) + "px";
+    } else {
+      tooltip.style.display = "none";
+    }
+  });
+});
+canvas.addEventListener("mouseleave", () => {
+  tooltip.style.display = "none";
+  if (hoverIdx !== -1) { hoverIdx = -1; draw(); }
+});
+
+/* ------------------------------ controls & state ------------------------------ */
+const $ = id => document.getElementById(id);
+const polyList = $("poly-list");
+for (const [key, poly] of Object.entries(POLYMERS)) {
+  const row = document.createElement("label");
+  row.className = "poly-row";
+  row.innerHTML =
+    '<input type="checkbox" data-key="' + key + '" checked>' +
+    '<span class="poly-dot" style="background:' + poly.color + ';box-shadow:0 0 6px ' + poly.color + '"></span>' +
+    '<span>' + poly.name + '</span>' +
+    '<span class="poly-density">' + (poly.density * 1000).toFixed(2) + ' g/cm³</span>';
+  polyList.appendChild(row);
+}
+
+function readParams() {
+  return {
+    raker: parseFloat($("raker").value),
+    flow: parseInt($("flow").value, 10),
+    storm: $("storm-toggle").checked,
+    count: parseInt($("count").value, 10),
+    active: [...polyList.querySelectorAll("input:checked")].map(cb => cb.dataset.key)
+  };
+}
+
+/* telemetry session log (kept in memory, newest first, capped at 20) */
+let runCounter = 0;
+const telemetryLog = [];
+
+function logRun(p, purity) {
+  runCounter++;
+  telemetryLog.push({
+    run: runCounter,
+    time: new Date().toTimeString().slice(0, 8),
+    velocity: p.flow,
+    geometry: p.raker,
+    load: p.count,
+    purity: purity.toFixed(1) + "%",
+    regime: p.storm ? "Turbulent" : "Laminar"
+  });
+  if (telemetryLog.length > 20) telemetryLog.shift();
+
+  $("log-body").innerHTML = telemetryLog.slice().reverse().map(r =>
+    "<tr><td>" + r.run + "</td><td>" + r.time + "</td><td>" + r.velocity +
+    "</td><td>" + r.geometry.toFixed(1) + "</td><td>" + r.load +
+    '</td><td class="purity">' + r.purity +
+    '</td><td class="' + (r.regime === "Turbulent" ? "turb" : "lam") + '">' + r.regime +
+    "</td></tr>"
+  ).join("");
+}
+
+function rerun(log) {
+  const p = readParams();
+
+  if (p.active.length === 0) {
+    $("error-banner").style.display = "block";
+    $("dashboard").style.display = "none";
+    return;
+  }
+  $("error-banner").style.display = "none";
+  $("dashboard").style.display = "block";
+
+  const result = simulate(p);
+  lastResult = result;
+  lastParams = p;
+  hoverIdx = -1;
+
+  /* volumetric math (mirrors web_app.py) */
+  const qIntake = ((CH_HEIGHT * CH_DEPTH) / 100.0) * (p.flow / 10.0) * 0.06;
+  const qFiltrate = qIntake * 0.45 * (p.raker >= 4.0 ? 1.0 : 0.4 + 0.15 * p.raker);
+  const purity = (result.captured / p.count) * 100;
+  const escaped = p.count - result.captured;
+
+  $("m-intake").textContent = qIntake.toFixed(1) + " L/m";
+  $("m-filtrate").textContent = qFiltrate.toFixed(1) + " L/m";
+  $("m-purity").textContent = purity.toFixed(1) + "%";
+  $("m-leak").textContent = escaped;
+  $("m-leak-card").className = "metric " + (escaped > 0 ? "orange" : "");
+
+  if (log) logRun(p, purity);
+  draw();
+}
+
+/* live recompute while dragging; log a telemetry row when the control settles */
+for (const id of ["raker", "flow", "count"]) {
+  $(id).addEventListener("input", () => {
+    $(id + "-val").textContent = id === "raker"
+      ? parseFloat($(id).value).toFixed(1)
+      : $(id).value;
+    rerun(false);
+  });
+  $(id).addEventListener("change", () => rerun(true));
+}
+$("storm-toggle").addEventListener("change", () => rerun(true));
+polyList.addEventListener("change", () => rerun(true));
+
+/* tabs */
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach(pn => pn.classList.remove("active"));
+    btn.classList.add("active");
+    $("tab-" + btn.dataset.tab).classList.add("active");
+    if (btn.dataset.tab === "traj") draw();
+  });
+});
+
+window.addEventListener("resize", () => draw());
+rerun(true);
+</script>
+</body>
+</html>

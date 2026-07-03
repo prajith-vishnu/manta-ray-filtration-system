@@ -36,20 +36,26 @@ Negative results are valid scientific findings.
 
 ## Live Demo
 
-https://manta-ray-filtration-system.streamlit.app
+https://manta-ray-filtration-system-two.vercel.app
+
+The demo is a static site (vanilla JavaScript + HTML5 Canvas) that runs the full particle
+simulation client-side, so it loads instantly with no server wake-up delay. Hosted on Vercel.
 
 ## Tech Stack
 
-- Python 3
-- Streamlit
-- Matplotlib
-- Pandas
+- **Web demo:** Vanilla JavaScript + HTML5 Canvas (`index.html`), deployed on Vercel
+- **Research code:** Python 3, Streamlit, Matplotlib, Pandas (parameter sweeps and the original dashboard)
 
 ## Run Locally
 
 ```bash
 git clone https://github.com/prajith-vishnu/manta-ray-filtration-system
 cd manta-ray-filtration-system
+
+# Web demo — just open it in a browser
+open index.html
+
+# Python research dashboard
 pip install -r requirements.txt
 streamlit run web_app.py
 ```

@@ -1,0 +1,9 @@
+__pycache__
+*.py
+*.pyc
+requirements.txt
+simulation_telemetry.csv
+simulations
+prototypes
+data_fetch
+.gitignore
